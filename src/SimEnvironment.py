@@ -19,10 +19,9 @@ class SimEnvironment:
 		self.maxY = dimY
 		self.minZ = -dimZ
 		self.params = {                     # default set of parameters
-		    "speedOfSound":         1500,   # speed of sound in water (meters)
-		    "transmissionRange":    200     # maximum range a signal can reach (meters)
+		    "speedOfSound":         1500,   # speed of sound in water (m/s)
+		    "transmissionRange":    200     # maximum range a signal can reach (m)
 		    "transmissionSuccess":  1       # probability of a signal reaching its destination (0 to 1)
-		    
 		}
 		self.params.update(params)          # let user-provided parameters override default parameters
 		
@@ -37,7 +36,7 @@ class SimEnvironment:
 			node.x = uniform(0, maxX)
 			node.y = uniform(0, maxY)
 			node.z = uniform(minZ, 0)
+		
 		self.nodes.append(node)
-			
 		
 		
