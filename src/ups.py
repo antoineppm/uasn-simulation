@@ -25,7 +25,7 @@ class AnchorNode(UWNode):
 		if self.priority == 0 and time == 0:
 			print str(self.name) + " initating beaconing sequence"
 			x, y, z = self.position
-			return str(self.priority) + " " + str(x) + " " + str(y) + " " + str(z) + " " + str(delay)
+			return "0 " + str(x) + " " + str(y) + " " + str(z) + " 0"
 		elif self.nextToBeacon:
 			print str(self.name) + " beaconing at time " + str(time)
 			self.nextToBeacon = False
@@ -40,9 +40,9 @@ class AnchorNode(UWNode):
 		time        -- date of reception (s)
 		message     -- message received
 		"""
-		priority = message.split()[0]
+		priority = int(message.split()[0])
 		if priority + 1 == self.priority:
-			print str(self.name) + " received previous beacon"
+			print str(self.name) + " received beacon " + str(priority) + " at time " + str(time)
 			self.timeOfReception = time
 			self.nextToBeacon = True
 
