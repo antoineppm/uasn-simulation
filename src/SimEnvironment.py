@@ -44,6 +44,8 @@ class SimEnvironment:
 			z = uniform(self.minZ, 0)
 			node.position = (x,y,z)
 		
+		node.speedOfSound = self.params["sos"]
+		
 		self.nodes.append(node)
 	
 	def run(self, timeout):
