@@ -72,21 +72,21 @@ class SimEnvironment:
 		message     -- message to be broadcast
 		"""
 		for node in self.nodes:
-			distance = self.distance(node.position, position)
-			if distance > 0 and distance <= self.params["range"] and uniform(0,1) < self.params["reliability"]:
-				toa = time + distance / self.params["sos"]
+			d = distance(node.position, position)
+			if d > 0 and d <= self.params["range"] and uniform(0,1) < self.params["reliability"]:
+				toa = time + d / self.params["sos"]
 				heappush(self.events, (toa, message, node))
 	
-	def distance(self, position1, position2):
-		"""Calculates an euclidian distance
-		position1   -- X,Y,Z coordinates of the first point (m,m,m)
-		position2   -- X,Y,Z coordinates of the second point (m,m,m)
-		Returns the distance between two points
-		"""
-		x1,y1,z1 = position1
-		x2,y2,z2 = position2
-		dx = x1-x2
-		dy = y1-y2
-		dz = z1-z2
-		return sqrt(dx*dx + dy*dy + dz*dz)
+def distance(position1, position2):
+	"""Calculates an euclidian distance
+	position1   -- X,Y,Z coordinates of the first point (m,m,m)
+	position2   -- X,Y,Z coordinates of the second point (m,m,m)
+	Returns the distance between two points
+	"""
+	x1,y1,z1 = position1
+	x2,y2,z2 = position2
+	dx = x1-x2
+	dy = y1-y2
+	dz = z1-z2
+	return sqrt(dx*dx + dy*dy + dz*dz)
 		
