@@ -23,7 +23,7 @@ class SimEnvironment:
 		    "sos":          1500,       # speed of sound in water (m/s)
 		    "range":        1000,       # maximum range a signal can reach (m)
 		    "reliability":  1,          # probability of a signal reaching its destination (0 to 1)
-		    "tick"          1           # duration between two activations of the nodes
+		    "tick":         1           # duration between two activations of the nodes
 		}
 		self.params.update(params)      # let user-provided parameters override default parameters
 		
@@ -39,9 +39,9 @@ class SimEnvironment:
 		"""
 		x, y, z = node.position
 		if x < 0 or x > self.maxX or y < 0 or y > self.maxY or z < self.minZ or z > 0:  # if coordinates are out of bounds, random coordinates are assigned
-			x = uniform(0, maxX)
-			y = uniform(0, maxY)
-			z = uniform(minZ, 0)
+			x = uniform(0, self.maxX)
+			y = uniform(0, self.maxY)
+			z = uniform(self.minZ, 0)
 			node.position = (x,y,z)
 		
 		self.nodes.append(node)
@@ -75,7 +75,7 @@ class SimEnvironment:
 				toa = time + distance / self.params["sos"]
 				heappush(self.events, (toa, message, node))
 	
-	def distance(self, position1, position1):
+	def distance(self, position1, position2):
 		"""Calculates an euclidian distance
 		position1   -- X,Y,Z coordinates of the first point (m,m,m)
 		position2   -- X,Y,Z coordinates of the second point (m,m,m)
