@@ -42,7 +42,7 @@ class AnchorNode(UWNode):
 		"""
 		priority = int(message.split()[0])
 		if priority + 1 == self.priority:
-			print str(self.name) + " received beacon " + str(priority) + " at time " + str(time)
+			print str(self.name) + " received beacon " + str(priority) + " at time " + str(time) + ": " + message
 			self.timeOfReception = time
 			self.nextToBeacon = True
 
@@ -54,7 +54,7 @@ class SensorNode(UWNode):
 		"""
 		name = "sensor" + str(nb)
 		UWNode.__init__(self, name)
-		self.beaconsReceived = []
+		self.beaconsReceived = [None, None, None, None]
 	
 	def tick(self, time):
 		"""Function called every tick, lets the node perform operations
@@ -69,6 +69,9 @@ class SensorNode(UWNode):
 		time        -- date of reception (s)
 		message     -- message received
 		"""
+		print self.name + " received beacon at time " + str(time) + ": " + message
+		priority, x, y, z, delay = [float(s) for s in message.split()]
+		self.beaconsReceived(priority) = (x, y, z, time, delay)
 
 sim = SimEnvironment((500,500,200))
 
