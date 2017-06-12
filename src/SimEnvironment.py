@@ -52,6 +52,7 @@ class SimEnvironment:
 		"""
 		heappush(self.events, (0, "", None))    # initialize the event list
 		time = 0
+		print "start..."
 		while time <= timeout:
 			time, message, recipient = heappop(self.events)
 			if len(message) == 0:
@@ -62,6 +63,7 @@ class SimEnvironment:
 				heappush(self.events, (time + self.params["tick"], "", None))
 			else:
 				recipient.receive(time, message)
+		print "...end"
 	
 	def broadcast(self, time, position, message):
 		"""Schedules a message to be recieved by all nodes in range
@@ -71,7 +73,7 @@ class SimEnvironment:
 		"""
 		for node in self.nodes:
 			distance = self.distance(node.position, position)
-			if distance <= self.params["range"] and uniform(0,1) < self.params["reliability"]:
+			if distance > 0 and distance <= self.params["range"] and uniform(0,1) < self.params["reliability"]:
 				toa = time + distance / self.params["sos"]
 				heappush(self.events, (toa, message, node))
 	

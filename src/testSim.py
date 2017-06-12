@@ -9,8 +9,9 @@ class TestNode(UWNode):
 		"""Create a node
 		nb          -- index of the node, used to give it a name
 		"""
-		UWNode.__init__(self, "node"+str(id))
+		UWNode.__init__(self, "node"+str(nb))
 		self.readyToSend = False
+		self.messageCounter = 0
 	
 	def tick(self, time):
 		"""Function called every tick, lets the node perform operations
@@ -18,9 +19,10 @@ class TestNode(UWNode):
 		Returns a string to be broadcast (if the string is empty, it is not broadcast)
 		"""
 		if self.readyToSend:
-			message = "from " + self.name
+			message = "from " + self.name + " #" + str(self.messageCounter)
 			print self.name + " sent message '" + message + "' at time " + str(time)
 			self.readyToSend = False
+			self.messageCounter += 1
 			return message
 		else:
 			return ""
@@ -35,9 +37,13 @@ class TestNode(UWNode):
 
 node1 = TestNode(1)
 node2 = TestNode(2)
+node3 = TestNode(3)
 
-sim = SimEnvironment((500,500,100))
+sim = SimEnvironment((1000,1000,200), {"tick":0.1})
 sim.addNode(node1)
 sim.addNode(node2)
+sim.addNode(node3)
 
-sim.run(10)
+node1.readyToSend = True
+
+sim.run(2)
