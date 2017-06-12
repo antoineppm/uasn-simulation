@@ -4,7 +4,7 @@ from SimEnvironment import SimEnvironment
 from UWNode import UWNode
 
 class AnchorNode(UWNode):
-	"""Node that knows its position and takes par in the beaconing sequence"""
+	"""Node that knows its position and takes part in the beaconing sequence"""
 	def __init__(self, priority, position):
 		"""Create an anchor node
 		priority    -- indicates the beaconing order
@@ -45,6 +45,30 @@ class AnchorNode(UWNode):
 			print str(self.name) + " received beacon " + str(priority) + " at time " + str(time)
 			self.timeOfReception = time
 			self.nextToBeacon = True
+
+class SensorNode(UWNode):
+	"""Node that does not know its position, and calculates it by listening to the beacons"""
+	def __init__(self, nb):
+		"""Create a sensor node with undefined position
+		nb          -- numerical identifier used to name the node
+		"""
+		name = "sensor" + str(nb)
+		UWNode.__init__(self, name)
+		self.beaconsReceived = []
+	
+	def tick(self, time):
+		"""Function called every tick, lets the node perform operations
+		time        -- date of polling (s)
+		If the sensor has received all four beacons, calculates and log its position
+		Never transmits
+		"""
+		return ""
+	
+	def receive(self, time, message):
+		"""Function called when a message broadcast by another node arrives at the node
+		time        -- date of reception (s)
+		message     -- message received
+		"""
 
 sim = SimEnvironment((500,500,200))
 
