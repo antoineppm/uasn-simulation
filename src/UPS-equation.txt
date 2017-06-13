@@ -1,0 +1,52 @@
+t0 = t + dist0/v
+t1 = t + dist01/v + dt1 + dist1/v
+t2 = t + dist01/v + dt1 + dist12/v + dt2 + dist2/v
+t3 = t + dist01/v + dt1 + dist12/v + dt2 + dist23/v + dt3 + dist3/v
+
+(t1-t0)*v = dist01 + dist1 - dist0 + dt1*v
+(t2-t0)*v = dist01 + dist12 + dist2 - dist0 + (dt1+dt2)*v
+(t3-t0)*v = dist01 + dist12 + dist23 + dist3 - dist0 + (dt1+dt2+dt3)/v
+
+dist1 = dist0 - dist01 - (dt1+t0-t1)*v                            = dist0 - k1
+dist2 = dist0 - dist01 - dist12 - (dt1+dt2+t0-t2)*v               = dist0 - k2
+dist3 = dist0 - dist01 - dist12 - dist23 - (dt1+dt2+dt3+t0-t3)*v  = dist0 - k3
+
+let w = dist0
+w² = (x-x0)² + (y-y0)² + (z-z0)²
+(w-k1)² = (x-x1)² + (y-y1)² + (z-z1)²
+(w-k2)² = (x-x2)² + (y-y2)² + (z-z2)²
+(w-k3)² = (x-x3)² + (y-y3)² + (z-z3)²
+
+w² = x² - 2x0.x + x0² + y² - 2y0.y + y0² + z² - 2z0.z + z0²
+x² + y² + z² - w² - 2x0.x - 2y0.y - 2z0.z + x0² + y0² + z0² = 0
+
+w² - 2k1.w + k1² = x² - 2x1.x + x1² + y² - 2y1.y + y1² + z² - 2z1.z + z1²
+x² + y² + z² - w² - 2x1.x - 2y1.y - 2z1.z + 2k1.w + x1² + y1² + z1² - k1² = 0
+x² + y² + z² - w² - 2x2.x - 2y2.y - 2z2.z + 2k2.w + x2² + y2² + z2² - k2² = 0
+x² + y² + z² - w² - 2x3.x - 2y3.y - 2z3.z + 2k3.w + x3² + y3² + z3² - k3² = 0
+
+2(x0-x1).x + 2(y0-y1).y + 2(z0-z1).z + 2k1.w + (x1² + y1² + z1² - k1² - x0² - y0² - z0²) = 0
+2(x0-x2).x + 2(y0-y2).y + 2(z0-z2).z + 2k2.w + (x2² + y2² + z2² - k2² - x0² - y0² - z0²) = 0
+2(x0-x3).x + 2(y0-y3).y + 2(z0-z3).z + 2k3.w + (x3² + y3² + z3² - k3² - x0² - y0² - z0²) = 0
+
+x = Ax.w + Bx
+y = Ay.w + By
+z = Az.w + Bz
+
+2(x0-x1).Ax + 2(y0-y1).Ay + 2(z0-z1).Az + 2k1 = 0
+2(x0-x2).Ax + 2(y0-y2).Ay + 2(z0-z2).Az + 2k2 = 0
+2(x0-x3).Ax + 2(y0-y3).Ay + 2(z0-z3).Az + 2k3 = 0
+
+2(x0-x1).Bx + 2(y0-y1).By + 2(z0-z1).Bz + (x1² + y1² + z1² - k1² - x0² - y0² - z0²) = 0
+2(x0-x2).Bx + 2(y0-y2).By + 2(z0-z2).Bz + (x2² + y2² + z2² - k2² - x0² - y0² - z0²) = 0
+2(x0-x3).Bx + 2(y0-y3).By + 2(z0-z3).Bz + (x3² + y3² + z3² - k3² - x0² - y0² - z0²) = 0
+
+#### solve with numpy ####
+
+w² = x² - 2x0.x + x0² + y² - 2y0.y + y0² + z² - 2z0.z + z0²
+w² = Ax²w² + 2AxBx.w + Bx² - 2x0Ax.w - 2x0Bx + x0² + Ay²w² + 2AyBy.w + By² - 2y0Ay.w - 2y0By + y0² + Az²w² + 2AzBz.w + Bz² - 2z0Az.w - 2z0Bz + z0²
+(Ax²+Ay²+Az²-1)w² + (2AxBx+2AyBy+2AzBz-2x0Ax-2y0Ay-2z0Az)w + (Bx²+By²+Bz²-2x0Bx-2y0By-2z0Bz+x0²+y0²+z0²) = 0
+
+a.w² + b.w + c = 0
+
+w = (-b ± sqrt(b²-4ac))/(2a)
