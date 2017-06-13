@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from heapq import heappush, heappop
-from random import uniform
+from random import uniform, gauss
 from math import sqrt
 
 class SimEnvironment:
@@ -23,6 +23,7 @@ class SimEnvironment:
 		    "sos":          1500,       # speed of sound in water (m/s)
 		    "range":        1000,       # maximum range a signal can reach (m)
 		    "reliability":  1,          # probability of a signal reaching its destination (0 to 1)
+		    "sigma":		0.05,       # standard deviation of the time-of-arrival noise
 		    "tick":         1           # duration between two activations of the nodes
 		}
 		self.params.update(params)      # let user-provided parameters override default parameters
@@ -76,7 +77,7 @@ class SimEnvironment:
 		for node in self.nodes:
 			d = distance(node.position, position)
 			if d > 0 and d <= self.params["range"] and uniform(0,1) < self.params["reliability"]:
-				toa = time + d / self.params["sos"]
+				toa = time + gauss(1, self.params["sigma"]) * d / self.params["sos"]
 				heappush(self.events, (toa, message, node))
 	
 def distance(position1, position2):
