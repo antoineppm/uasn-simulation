@@ -1,15 +1,15 @@
-t0 = t + dist0/v
-t1 = t + dist01/v + dt1 + dist1/v
-t2 = t + dist01/v + dt1 + dist12/v + dt2 + dist2/v
-t3 = t + dist01/v + dt1 + dist12/v + dt2 + dist23/v + dt3 + dist3/v
+t0 = t + dt0 + dist0/v
+t1 = t + dt1 + dist1/v
+t2 = t + dt2 + dist2/v
+t3 = t + dt3 + dist3/v
 
-(t1-t0)*v = dist01 + dist1 - dist0 + dt1*v
-(t2-t0)*v = dist01 + dist12 + dist2 - dist0 + (dt1+dt2)*v
-(t3-t0)*v = dist01 + dist12 + dist23 + dist3 - dist0 + (dt1+dt2+dt3)/v
+(t1-t0)*v = dist1 + dt1*v - dist0 - dt0*v
+(t2-t0)*v = dist2 + dt2*v - dist0 - dt0*v
+(t3-t0)*v = dist3 + dt3*v - dist0 - dt0*v
 
-dist1 = dist0 - dist01 - (dt1+t0-t1)*v                            = dist0 - k1
-dist2 = dist0 - dist01 - dist12 - (dt1+dt2+t0-t2)*v               = dist0 - k2
-dist3 = dist0 - dist01 - dist12 - dist23 - (dt1+dt2+dt3+t0-t3)*v  = dist0 - k3
+dist1 = dist0 - (t0-dt0-t1+dt1)*v	= dist0 - k1
+dist2 = dist0 - (t0-dt0-t2+dt2)*v	= dist0 - k2
+dist3 = dist0 - (t0-dt0-t3+dt3)*v	= dist0 - k3
 
 let w = dist0
 w² = (x-x0)² + (y-y0)² + (z-z0)²
