@@ -5,7 +5,7 @@ from UWNode import UWNode
 from TDOACalculator import TDOACalculator
 
 beaconPeriod = 1        # time between two beacon cycles (s)
-beaconNumber = 1        # number of beacon cycles
+beaconNumber = 50       # number of beacon cycles
 
 class AnchorNode(UWNode):
 	"""Node that knows its position and takes part in the beaconing sequence"""
@@ -18,13 +18,13 @@ class AnchorNode(UWNode):
 		name = "anchor" + str(priority)
 		UWNode.__init__(self, name, position)
 		self.priority = priority
-		self.beaconCount = -1                   # number of beacons already performed
+		self.beaconCount = 0                    # number of beacons already performed
 		# used by master anchor (priority 0)
 		self.nextBeaconTime = 0                 # time of next beacon
 		# used by follower anchors (priority > 0)
-		self.distanceToPrevious	= 0				# distance to the anchor immediately before
+		self.distanceToPrevious	= None          # distance to the anchor immediately before
 		self.timeOrigin = 0                     # used to calculate the beaconing delay
-		self.nextBeacon = ""                    # indicates type of beacon to send at the next tick, if any
+		self.nextToBeacon = False               # indicates type of beacon to send at the next tick, if any
 	
 	def tick(self, time):
 		"""Function called every tick, lets the node perform operations
@@ -32,26 +32,19 @@ class AnchorNode(UWNode):
 		If the anchor node is next in line to beacon, sends out a message: position + beaconing delay
 		"""
 		message = ""
-		if self.priority == 0 and time >= self.nextBeaconTime:
-			if self.beaconCount == -1:
-				x, y, z = self.position
-				message = "0 position " + str(x) + " " + str(y) + " " + str(z)
-			elif self.beaconCount < beaconNumber:
-				message = "0 beacon " + str(self.beaconCount) + " 0"
-			elif self.beaconCount == beaconNumber+1:	# we skip a cycle to give the previous beaconing cycle time to finish
-				message = "0 done"
+		if self.priority == 0 and time >= self.nextBeaconTime and self.beaconCount < beaconNumber:
+			x, y, z = self.position
+			message = str(self.beaconCount) + " " + str(self.priority) + " " + str(x) + " " + str(y) + " " + str(z) + " 0"
 			self.nextBeaconTime += beaconPeriod
 			self.beaconCount += 1
-		elif self.priority > 0:
-			if self.nextBeacon == "position":
-				x, y, z = self.position
-				message = str(self.priority) + " position " + str(x) + " " + str(y) + " " + str(z)
-			elif self.nextBeacon == "beacon":
-				delay = time - self.timeOrigin
-				message = str(self.priority) + " beacon " + str(self.beaconCount) + " " + str(delay)
-			self.nextBeacon = ""
+		elif self.priority > 0 and self.nextToBeacon:
+			x, y, z = self.position
+			delay = time - self.timeOrigin
+			message = str(self.beaconCount) + " " + str(self.priority) + " " + str(x) + " " + str(y) + " " + str(z) + " " + str(delay)
+			self.nextToBeacon = False
 		if len(message) > 0:
 			print "{:6}".format("%.3f" % time) + " -- " + self.name + " sending: " + message
+			pass
 		return message
 	
 	def receive(self, time, message):
@@ -59,17 +52,15 @@ class AnchorNode(UWNode):
 		time        -- date of reception (s)
 		message     -- message received
 		"""
-		priority = int(message.split()[0])
+		priority = int(message.split()[1])
 		if priority + 1 == self.priority:
-			print "{:6}".format("%.3f" % time) + " -- " + self.name + " received beacon " + str(priority) + ": " + message
-			self.nextBeacon = message.split()[1]
-			if self.nextBeacon == "position":
-				x, y, z = [ float(i) for i in message.split()[2:5] ]
+			# print "{:6}".format("%.3f" % time) + " -- " + self.name + " received beacon: " + message
+			self.beaconCount = int(message.split()[0])
+			x, y, z, delay = [ float(i) for i in message.split()[2:6] ]
+			if self.distanceToPrevious is None:
 				self.distanceToPrevious = distance(self.position, (x,y,z))
-			elif self.nextBeacon == "beacon":
-				self.beaconCount = int(message.split()[2])
-				delay = float(message.split()[3])
-				self.timeOrigin = time - (self.distanceToPrevious / self.speedOfSound) - delay
+			self.timeOrigin = time - (self.distanceToPrevious / self.speedOfSound) - delay
+			self.nextToBeacon = True
 
 class SensorNode(UWNode):
 	"""Node that does not know its position, and calculates it by listening to the beacons"""
@@ -80,6 +71,8 @@ class SensorNode(UWNode):
 		name = "sensor" + str(nb)
 		UWNode.__init__(self, name)
 		self.tdoaCalc = TDOACalculator()
+		self.timeout = float('inf')
+		self.localized = False				# set to true once a successful calculation is done
 	
 	def tick(self, time):
 		"""Function called every tick, lets the node perform operations
@@ -87,6 +80,17 @@ class SensorNode(UWNode):
 		If the sensor has received all four beacons, calculates and log its position
 		Never transmits
 		"""
+		if time >= self.timeout:
+			error, x, y, z = self.tdoaCalc.calculatePosition(self.speedOfSound)
+			if error != "ok":
+				print self.name + " could not find its position: " + error
+				print "       actual position: " + "%.3f, %.3f, %.3f" % self.position
+			else:
+				print self.name + " found position: " + "%.3f, %.3f, %.3f" % (x, y, z)
+				print "       actual position: " + "%.3f, %.3f, %.3f" % self.position
+				print "                 error: " + "%.3f" % distance(self.position, (x,y,z))
+				self.localized = True
+			self.timeout = float('inf')
 		return ""
 	
 	def receive(self, time, message):
@@ -94,35 +98,26 @@ class SensorNode(UWNode):
 		time        -- date of reception (s)
 		message     -- message received
 		"""
-		print "{:6}".format("%.3f" % time) + " -- " + self.name + " received beacon: " + message
-		anchor = int(message.split()[0])
-		messageType = message.split()[1]
-		if messageType == "position":
-			x, y, z = [ float(i) for i in message.split()[2:5] ]
-			self.tdoaCalc.addAnchor(anchor, x, y, z)
-		if messageType == "beacon":
-			beaconCount = int(message.split()[2])
-			delay = float(message.split()[3])
-			self.tdoaCalc.addDataPoint(beaconCount, anchor, time, delay)
-		if messageType == "done":
-			error, x, y, z = self.tdoaCalc.calculatePosition(self.speedOfSound)
-			if error != "ok":
-				print self.name + " could not find its position: " + error
-			else:
-				print self.name + " found position: " + "%.3f, %.3f, %.3f" % (x, y, z)
-				print "       actual position: " + "%.3f, %.3f, %.3f" % self.position
-				print "                 error: " + "%.3f" % distance(self.position, (x,y,z))
+		# print "{:6}".format("%.3f" % time) + " -- " + self.name + " received beacon: " + message
+		beaconCount = int(message.split()[0])
+		anchor = int(message.split()[1])
+		x, y, z, delay = [ float(i) for i in message.split()[2:6] ]
+		self.tdoaCalc.addAnchor(anchor, x, y, z)
+		self.tdoaCalc.addDataPoint(beaconCount, anchor, time, delay)
+		self.timeout = time + 5*beaconPeriod
 
-sim = SimEnvironment((500,500,200), {"sigma":0})
+sim = SimEnvironment((500,500,200), {"sigma":0.01, "reliability":0.9})
 
 sim.addNode(AnchorNode(0, (0, 0, 0)))
 sim.addNode(AnchorNode(1, (0, 500, 0)))
 sim.addNode(AnchorNode(2, (500, 250, 0)))
 sim.addNode(AnchorNode(3, (500, 250, -200)))
 
-sensor = SensorNode(0)
-sensor.position = (250,250,-100)
+# sensor = SensorNode(0)
+# sensor.position = (250,250,-100)
+# sim.addNode(sensor)
 
-sim.addNode(sensor)
+for i in xrange(10):
+	sim.addNode(SensorNode(i))
 
 sim.run(200)
