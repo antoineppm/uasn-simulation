@@ -26,8 +26,8 @@ class UWNode:
 		"""
 	
 	def display(self, plot):
-		"""Indicates one or more points (coordinates and style) representing the node
-		Returns a list of points: (x, y, z, color, marker)
+		"""Displays a representation of the node in a 3D plot
+		plot        -- matplotlib plot in which the node must display itself
 		"""
 		x, y, z = self.position
 		plot.scatter(x, y, z, c='k', marker='o')
