@@ -3,7 +3,7 @@
 from heapq import heappush, heappop
 from random import uniform, gauss
 from math import sqrt
-import matplotlib as plt
+import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 class SimEnvironment:
@@ -84,15 +84,17 @@ class SimEnvironment:
 	
 	def show(self):
 		"""Displays a 3D plot of the nodes"""
+		# create the plot
 		fig = plt.figure()
 		ax = fig.add_subplot(111, projection='3d')
-		
+		# display the nodes
 		for node in self.nodes:
 			for x, y, z, c, m in node.representation():
 				ax.scatter([x], [y], [z], c=c, marker=m)
-		
-		ax.axis([0, self.maxX, 0, self.maxY, self.minZ, 0])
-		plt.plot()
+		# add invisible points to give the plot the right size
+		ax.scatter([0, self.maxX], [0, self.maxY], [self.minZ, 0], marker = '.', alpha=0)
+		# display the plot
+		plt.show()
 	
 def distance(position1, position2):
 	"""Calculates an euclidian distance
