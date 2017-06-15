@@ -91,7 +91,10 @@ class SimEnvironment:
 		for node in self.nodes:
 			node.display(ax)
 		# add invisible points to give the plot the right size
-		ax.scatter([0, self.maxX], [0, self.maxY], [self.minZ, 0], marker = '.', alpha=0)
+		maxDim = max(self.maxX, self.maxY, -self.minZ)
+		ax.scatter([0, maxDim], [0, maxDim], [-maxDim, 0], marker = '.', alpha=0)
+		ax.set_aspect('equal')
+		ax.autoscale(tight=True)
 		# display the plot
 		plt.show()
 	
