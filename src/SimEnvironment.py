@@ -3,6 +3,8 @@
 from heapq import heappush, heappop
 from random import uniform, gauss
 from math import sqrt
+import matplotlib as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 class SimEnvironment:
 	"""Manages a set of nodes and the communications between them"""
@@ -79,6 +81,18 @@ class SimEnvironment:
 			if d > 0 and d <= self.params["range"] and uniform(0,1) < self.params["reliability"]:
 				toa = time + gauss(1, self.params["sigma"]) * d / self.params["sos"]
 				heappush(self.events, (toa, message, node))
+	
+	def show(self):
+		"""Displays a 3D plot of the nodes"""
+		fig = plt.figure()
+		ax = fig.add_subplot(111, projection='3d')
+		
+		for node in self.nodes:
+			for x, y, z, c, m in node.representation():
+				ax.scatter([x], [y], [z], c=c, marker=m)
+		
+		ax.axis([0, self.maxX, 0, self.maxY, self.minZ, 0])
+		plt.plot()
 	
 def distance(position1, position2):
 	"""Calculates an euclidian distance

@@ -25,3 +25,10 @@ class UWNode:
 		message     -- message received
 		"""
 	
+	def representation(self):
+		"""Indicates one or more points (coordinates and style) representing the node
+		Returns a list of points: (x, y, z, color, marker)
+		"""
+		x, y, z = self.position
+		return [(x, y, z, 'k', 'o')]	# a black circle at the position of the node
+	
