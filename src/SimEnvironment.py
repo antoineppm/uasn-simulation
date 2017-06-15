@@ -89,8 +89,7 @@ class SimEnvironment:
 		ax = fig.add_subplot(111, projection='3d')
 		# display the nodes
 		for node in self.nodes:
-			for x, y, z, c, m in node.representation():
-				ax.scatter([x], [y], [z], c=c, edgecolor=c, marker=m)
+			node.display(ax)
 		# add invisible points to give the plot the right size
 		ax.scatter([0, self.maxX], [0, self.maxY], [self.minZ, 0], marker = '.', alpha=0)
 		# display the plot
