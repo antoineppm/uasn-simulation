@@ -62,12 +62,12 @@ class AnchorNode(UWNode):
 			self.timeOrigin = time - (self.distanceToPrevious / self.speedOfSound) - delay
 			self.nextToBeacon = True
 	
-	def representation(self):
-		"""Indicates one or more points (coordinates and style) representing the node
-		Returns a list of points: (x, y, z, color, marker)
+	def display(self, plot):
+		"""Displays a representation of the node in a 3D plot
+		plot        -- matplotlib plot in which the node must display itself
 		"""
 		x, y, z = self.position
-		return [(x, y, z, 'k', 's')]
+		plot.scatter(x, y, z, c='k', marker='s')
 
 class SensorNode(UWNode):
 	"""Node that does not know its position, and calculates it by listening to the beacons"""
@@ -113,16 +113,18 @@ class SensorNode(UWNode):
 		self.tdoaCalc.addDataPoint(beaconCount, anchor, time, delay)
 		self.timeout = time + 5*beaconPeriod
 	
-	def representation(self):
-		"""Indicates one or more points (coordinates and style) representing the node
-		Returns a list of points: (x, y, z, color, marker)
+	def display(self, plot):
+		"""Displays a representation of the node in a 3D plot
+		plot        -- matplotlib plot in which the node must display itself
 		"""
 		x, y, z = self.position
 		if self.positionEstimate is None:
-			return [(x, y, z, 'r', '^')]
+			plot.scatter(x, y, z, c='r', marker='^', lw=0)
 		else:
 			ex, ey, ez = self.positionEstimate
-			return [(x, y, z, 'b', '^'), (ex, ey, ez, 'k', '+')]
+			plot.scatter(x, y, z, c='b', marker='^', lw=0)
+			plot.scatter(ex, ey, ez, c='k', marker='+')
+			plot.plot([x,ex], [y,ey], [z,ez], 'k:')
 
 sim = SimEnvironment((500,500,200), {"sigma":0.01, "reliability":0.9})
 
