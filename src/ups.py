@@ -4,14 +4,11 @@ from SimEnvironment import SimEnvironment, distance
 from UWNode import UWNode
 from TDOACalculator import TDOACalculator
 
-beaconPeriod = 1        # time between two beacon cycles (s)
-beaconNumber = 1       # number of beacon cycles
-
 class AnchorNode(UWNode):
 	"""Node that knows its position and takes part in the beaconing sequence"""
 	def __init__(self, priority, position):
 		"""Create an anchor node
-		priority    -- indicates the beaconing order
+		priority    -- indicates the beaconing order (0-3)
 		            the anchor with priority 0 beacons first, followed by 1, etc
 		position    -- X,Y,Z coordinates of the anchor node (m,m,m)
 		"""
@@ -19,12 +16,8 @@ class AnchorNode(UWNode):
 		UWNode.__init__(self, name, position)
 		self.priority = priority
 		self.beaconCount = 0                    # number of beacons already performed
-		# used by master anchor (priority 0)
-		self.nextBeaconTime = 0                 # time of next beacon
-		# used by follower anchors (priority > 0)
 		self.distanceToPrevious	= None          # distance to the anchor immediately before
-		self.timeOrigin = 0                     # used to calculate the beaconing delay
-		self.nextToBeacon = False               # indicates type of beacon to send at the next tick, if any
+		self.timeOrigin = None                  # used to calculate the beaconing delay; if None, no beacon
 	
 	def tick(self, time):
 		"""Function called every tick, lets the node perform operations
@@ -32,16 +25,12 @@ class AnchorNode(UWNode):
 		If the anchor node is next in line to beacon, sends out a message: position + beaconing delay
 		"""
 		message = ""
-		if self.priority == 0 and time >= self.nextBeaconTime and self.beaconCount < beaconNumber:
-			x, y, z = self.position
-			message = str(self.beaconCount) + " " + str(self.priority) + " " + str(x) + " " + str(y) + " " + str(z) + " 0"
-			self.nextBeaconTime += beaconPeriod
-			self.beaconCount += 1
-		elif self.priority > 0 and self.nextToBeacon:
+		if self.timeOrigin is not None:
 			x, y, z = self.position
 			delay = time - self.timeOrigin
 			message = str(self.beaconCount) + " " + str(self.priority) + " " + str(x) + " " + str(y) + " " + str(z) + " " + str(delay)
-			self.nextToBeacon = False
+			self.timeOrigin = None
+			
 		if len(message) > 0:
 			print "{:6}".format("%.3f" % time) + " -- " + self.name + " sending: " + message
 			pass
@@ -60,7 +49,6 @@ class AnchorNode(UWNode):
 			if self.distanceToPrevious is None:
 				self.distanceToPrevious = distance(self.position, (x,y,z))
 			self.timeOrigin = time - (self.distanceToPrevious / self.speedOfSound) - delay
-			self.nextToBeacon = True
 	
 	def display(self, plot):
 		"""Displays a representation of the node in a 3D plot
@@ -68,6 +56,28 @@ class AnchorNode(UWNode):
 		"""
 		x, y, z = self.position
 		plot.scatter(x, y, z, c='k', marker='s')
+
+class MasterAnchorNode(AnchorNode):
+	"""Anchor node that initiates the beaconing sequences"""
+	def __init__(self, position, beaconPeriod, beaconNumber):
+		AnchorNode.__init__(self, 0, position)
+		self.beaconPeriod = beaconPeriod
+		self.nextBeaconTime = 0
+		self.beaconNumber = beaconNumber
+		self.beaconCount = 0
+	
+	def tick(self, time):
+		"""Function called every tick, lets the node perform operations
+		time        -- date of polling (s)
+		If the anchor node is next in line to beacon, sends out a message: position + beaconing delay
+		"""
+		message = ""
+		if time >= self.nextBeaconTime and self.beaconCount < self.beaconNumber:
+			self.timeOrigin = time      # we set the origin as the time of beaconing of the master
+			message = AnchorNode.tick(self, time)
+			self.nextBeaconTime += self.beaconPeriod
+			self.beaconCount += 1
+		return message
 
 class SensorNode(UWNode):
 	"""Node that does not know its position, and calculates it by listening to the beacons"""
@@ -111,7 +121,7 @@ class SensorNode(UWNode):
 		x, y, z, delay = [ float(i) for i in message.split()[2:6] ]
 		self.tdoaCalc.addAnchor(anchor, x, y, z)
 		self.tdoaCalc.addDataPoint(beaconCount, anchor, time, delay)
-		self.timeout = time + 5*beaconPeriod
+		self.timeout = time + 5        # arbitrary 5-second timeout
 	
 	def display(self, plot):
 		"""Displays a representation of the node in a 3D plot
@@ -125,19 +135,3 @@ class SensorNode(UWNode):
 			plot.scatter(x, y, z, c='b', marker='^', lw=0)
 			plot.scatter(ex, ey, ez, c='k', marker='+')
 			plot.plot([x,ex], [y,ey], [z,ez], 'k:')
-
-sim = SimEnvironment((500,500,200), {"sigma":0.01, "reliability":0.9})
-
-sim.addNode(AnchorNode(0, (0, 0, 0)))
-sim.addNode(AnchorNode(1, (0, 500, 0)))
-sim.addNode(AnchorNode(2, (500, 250, 0)))
-sim.addNode(AnchorNode(3, (500, 250, -200)))
-
-# sensor = SensorNode(0)
-# sensor.position = (250,250,-100)
-# sim.addNode(sensor)
-
-for i in xrange(10):
-	sim.addNode(SensorNode(i))
-
-sim.run(200)
