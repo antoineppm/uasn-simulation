@@ -5,7 +5,7 @@ from UWNode import UWNode
 from TDOACalculator import TDOACalculator
 
 beaconPeriod = 1        # time between two beacon cycles (s)
-beaconNumber = 50       # number of beacon cycles
+beaconNumber = 1       # number of beacon cycles
 
 class AnchorNode(UWNode):
 	"""Node that knows its position and takes part in the beaconing sequence"""
@@ -61,6 +61,13 @@ class AnchorNode(UWNode):
 				self.distanceToPrevious = distance(self.position, (x,y,z))
 			self.timeOrigin = time - (self.distanceToPrevious / self.speedOfSound) - delay
 			self.nextToBeacon = True
+	
+	def display(self, plot):
+		"""Displays a representation of the node in a 3D plot
+		plot        -- matplotlib plot in which the node must display itself
+		"""
+		x, y, z = self.position
+		plot.scatter(x, y, z, c='k', marker='s')
 
 class SensorNode(UWNode):
 	"""Node that does not know its position, and calculates it by listening to the beacons"""
@@ -72,7 +79,7 @@ class SensorNode(UWNode):
 		UWNode.__init__(self, name)
 		self.tdoaCalc = TDOACalculator()
 		self.timeout = float('inf')
-		self.localized = False				# set to true once a successful calculation is done
+		self.positionEstimate = None
 	
 	def tick(self, time):
 		"""Function called every tick, lets the node perform operations
@@ -89,7 +96,7 @@ class SensorNode(UWNode):
 				print self.name + " found position: " + "%.3f, %.3f, %.3f" % (x, y, z)
 				print "       actual position: " + "%.3f, %.3f, %.3f" % self.position
 				print "                 error: " + "%.3f" % distance(self.position, (x,y,z))
-				self.localized = True
+				self.positionEstimate = (x,y,z)
 			self.timeout = float('inf')
 		return ""
 	
@@ -105,6 +112,19 @@ class SensorNode(UWNode):
 		self.tdoaCalc.addAnchor(anchor, x, y, z)
 		self.tdoaCalc.addDataPoint(beaconCount, anchor, time, delay)
 		self.timeout = time + 5*beaconPeriod
+	
+	def display(self, plot):
+		"""Displays a representation of the node in a 3D plot
+		plot        -- matplotlib plot in which the node must display itself
+		"""
+		x, y, z = self.position
+		if self.positionEstimate is None:
+			plot.scatter(x, y, z, c='r', marker='^', lw=0)
+		else:
+			ex, ey, ez = self.positionEstimate
+			plot.scatter(x, y, z, c='b', marker='^', lw=0)
+			plot.scatter(ex, ey, ez, c='k', marker='+')
+			plot.plot([x,ex], [y,ey], [z,ez], 'k:')
 
 sim = SimEnvironment((500,500,200), {"sigma":0.01, "reliability":0.9})
 

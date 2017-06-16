@@ -25,3 +25,10 @@ class UWNode:
 		message     -- message received
 		"""
 	
+	def display(self, plot):
+		"""Displays a representation of the node in a 3D plot
+		plot        -- matplotlib plot in which the node must display itself
+		"""
+		x, y, z = self.position
+		plot.scatter(x, y, z, c='k', marker='o')
+	
