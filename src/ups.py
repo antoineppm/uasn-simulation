@@ -90,6 +90,7 @@ class SensorNode(UWNode):
 		self.tdoaCalc = TDOACalculator()
 		self.timeout = float('inf')
 		self.positionEstimate = None
+		self.errorEstimate = 0
 	
 	def tick(self, time):
 		"""Function called every tick, lets the node perform operations
@@ -98,7 +99,7 @@ class SensorNode(UWNode):
 		Never transmits
 		"""
 		if time >= self.timeout:
-			error, x, y, z = self.tdoaCalc.calculatePosition(self.speedOfSound)
+			error, x, y, z, e = self.tdoaCalc.calculatePosition(self.speedOfSound)
 			if error != "ok":
 				print self.name + " could not find its position: " + error
 				print "       actual position: " + "%.3f, %.3f, %.3f" % self.position
@@ -107,6 +108,7 @@ class SensorNode(UWNode):
 				print "       actual position: " + "%.3f, %.3f, %.3f" % self.position
 				print "                 error: " + "%.3f" % distance(self.position, (x,y,z))
 				self.positionEstimate = (x,y,z)
+				self.errorEstimate = e
 			self.timeout = float('inf')
 		return ""
 	
