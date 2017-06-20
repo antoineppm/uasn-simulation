@@ -34,38 +34,44 @@ class TDOACalculator:
 	def calculatePosition(self, velocity):
 		"""Calculates a position from the stored data
 		velocity    -- speed of transmission of the messages (m/s)
-		Returns a string ("ok" or error message) and three floats (calculated X,Y,Z coordinates if successful, 0 otherwise)
+		Returns a string ("ok" or error message) and four floats (calculated X,Y,Z coordinates plus error estimate if successful, 0 otherwise)
 		"""
 		# extracts the anchor positions
 		for anchor in self.anchorPositions:
 			if anchor is None:
-				return ("missing anchors", 0, 0, 0)
+				return ("missing anchors", 0, 0, 0, 0)
 		x0, y0, z0 = self.anchorPositions[0]
 		x1, y1, z1 = self.anchorPositions[1]
 		x2, y2, z2 = self.anchorPositions[2]
 		x3, y3, z3 = self.anchorPositions[3]
-		# k coefficients
-		k1List = []
-		k2List = []
-		k3List = []
+		# statistical measurements and k coefficients
+		kList = [ [], [], [] ]
 		for beacon in self.dataArchive.values():
 			if beacon[0] is None:
 				continue
 			t0, dt0 = beacon[0]
 			if beacon[1] is not None:
 				t1, dt1 = beacon[1]
-				k1List.append(t0 - dt0 - t1 + dt1)
+				kList[0].append(t0 - dt0 - t1 + dt1)
 			if beacon[2] is not None:
 				t2, dt2 = beacon[2]
-				k2List.append(t0 - dt0 - t2 + dt2)
+				kList[1].append(t0 - dt0 - t2 + dt2)
 			if beacon[3] is not None:
 				t3, dt3 = beacon[3]
-				k3List.append(t0 - dt0 - t3 + dt3)
-		if len(k1List) == 0 or len(k2List) == 0 or len(k3List) == 0:
-			return ("not enough data", 0, 0, 0)
-		k1 = velocity * sum(k1List) / len(k1List)
-		k2 = velocity * sum(k2List) / len(k2List)
-		k3 = velocity * sum(k3List) / len(k3List)
+				kList[2].append(t0 - dt0 - t3 + dt3)
+		average = [0, 0, 0]
+		stdev = [0, 0, 0]
+		for i in xrange(3):
+			kl = kList[i]
+			length = len(kl)
+			if length == 0:
+				return ("not enough data", 0, 0, 0, 0)
+			average[i] = sum(kl) / length
+			stdev[i] = sqrt(sum([ (x - average[i])**2 for x in kl ]) / length)
+		error = velocity * sqrt(sum([ s*s for s in stdev ]))
+		k1 = velocity * average[0]
+		k2 = velocity * average[1]
+		k3 = velocity * average[2]
 		# solving linear equations
 		M = np.array([ [x0-x1,  y0-y1,  z0-z1],
 		               [x0-x2,  y0-y2,  z0-z2],
@@ -85,7 +91,7 @@ class TDOACalculator:
 		delta = beta*beta - 4*alpha*gamma
 		w = 0
 		if delta < 0:
-			return ("no solution", 0, 0, 0)
+			return ("no solution", 0, 0, 0, 0)
 		elif delta == 0:
 			w = -beta / (2*alpha)
 		else:
@@ -96,12 +102,12 @@ class TDOACalculator:
 			elif w1 < 0:
 				w = w2
 			else:
-				return ("two solutions", 0, 0, 0)
+				return ("two solutions", 0, 0, 0, 0)
 		# calculating the coordinates
 		x = Ax*w + Bx
 		y = Ay*w + By
 		z = Az*w + Bz
-		return ("ok", x,y,z)
+		return ("ok", x,y,z, error)
 
 # test script
 calc = TDOACalculator()
