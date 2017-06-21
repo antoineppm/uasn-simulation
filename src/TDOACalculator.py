@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from SimEnvironment import distance
-
 from math import sqrt
 import numpy as np
 
@@ -46,68 +44,70 @@ class TDOACalculator:
 		x1, y1, z1 = self.anchorPositions[1]
 		x2, y2, z2 = self.anchorPositions[2]
 		x3, y3, z3 = self.anchorPositions[3]
-		
-		positions = []
-		
+		# statistical measurements and k coefficients
+		kList = [ [], [], [] ]
 		for beacon in self.dataArchive.values():
-			if sum([ 1 if b is None else 0 for b in beacon ]) > 0:      # check if any data point is missing
+			if beacon[0] is None:
 				continue
-			# k coefficients
 			t0, dt0 = beacon[0]
-			t1, dt1 = beacon[1]
-			t2, dt2 = beacon[2]
-			t3, dt3 = beacon[3]
-			k1 = velocity * (t0 - dt0 - t1 + dt1)
-			k2 = velocity * (t0 - dt0 - t2 + dt2)
-			k3 = velocity * (t0 - dt0 - t3 + dt3)
-			# solving linear equations
-			M = np.array([ [x0-x1,  y0-y1,  z0-z1],
-			               [x0-x2,  y0-y2,  z0-z2],
-			               [x0-x3,  y0-y3,  z0-z3] ])
-			A = np.array([ -k1,
-			               -k2,
-			               -k3 ])
-			B = np.array([ (k1*k1 + x0*x0 + y0*y0 + z0*z0 - x1*x1 - y1*y1 - z1*z1) / 2,
-			               (k2*k2 + x0*x0 + y0*y0 + z0*z0 - x2*x2 - y2*y2 - z2*z2) / 2,
-			               (k3*k3 + x0*x0 + y0*y0 + z0*z0 - x3*x3 - y3*y3 - z3*z3) / 2 ])
-			Ax, Ay, Az = np.linalg.solve(M, A)
-			Bx, By, Bz = np.linalg.solve(M, B)
-			# solving quadtratic equation
-			alpha = Ax*Ax + Ay*Ay + Az*Az - 1
-			beta = 2 * (Ax*Bx + Ay*By + Az*Bz - x0*Ax - y0*Ay - z0*Az)
-			gamma = Bx*Bx + By*By + Bz*Bz - 2 * (x0*Bx + y0*By + z0*Bz) + x0*x0 + y0*y0 + z0*z0
-			delta = beta*beta - 4*alpha*gamma
-			w = 0
-			if delta < 0:
-				continue
-			elif delta == 0:
-				w = -beta / (2*alpha)
+			if beacon[1] is not None:
+				t1, dt1 = beacon[1]
+				kList[0].append(t0 - dt0 - t1 + dt1)
+			if beacon[2] is not None:
+				t2, dt2 = beacon[2]
+				kList[1].append(t0 - dt0 - t2 + dt2)
+			if beacon[3] is not None:
+				t3, dt3 = beacon[3]
+				kList[2].append(t0 - dt0 - t3 + dt3)
+		average = [0, 0, 0]
+		stdev = [0, 0, 0]
+		for i in xrange(3):
+			kl = kList[i]
+			length = len(kl)
+			if length == 0:
+				return ("not enough data", 0, 0, 0, 0)
+			average[i] = sum(kl) / length
+			stdev[i] = sqrt(sum([ (x - average[i])**2 for x in kl ]) / length)
+		error = velocity * sqrt(sum([ s*s for s in stdev ]))
+		k1 = velocity * average[0]
+		k2 = velocity * average[1]
+		k3 = velocity * average[2]
+		# solving linear equations
+		M = np.array([ [x0-x1,  y0-y1,  z0-z1],
+		               [x0-x2,  y0-y2,  z0-z2],
+		               [x0-x3,  y0-y3,  z0-z3] ])
+		A = np.array([ -k1,
+		               -k2,
+		               -k3 ])
+		B = np.array([ (k1*k1 + x0*x0 + y0*y0 + z0*z0 - x1*x1 - y1*y1 - z1*z1) / 2,
+		               (k2*k2 + x0*x0 + y0*y0 + z0*z0 - x2*x2 - y2*y2 - z2*z2) / 2,
+		               (k3*k3 + x0*x0 + y0*y0 + z0*z0 - x3*x3 - y3*y3 - z3*z3) / 2 ])
+		Ax, Ay, Az = np.linalg.solve(M, A)
+		Bx, By, Bz = np.linalg.solve(M, B)
+		# solving quadtratic equation
+		alpha = Ax*Ax + Ay*Ay + Az*Az - 1
+		beta = 2 * (Ax*Bx + Ay*By + Az*Bz - x0*Ax - y0*Ay - z0*Az)
+		gamma = Bx*Bx + By*By + Bz*Bz - 2 * (x0*Bx + y0*By + z0*Bz) + x0*x0 + y0*y0 + z0*z0
+		delta = beta*beta - 4*alpha*gamma
+		w = 0
+		if delta < 0:
+			return ("no solution", 0, 0, 0, 0)
+		elif delta == 0:
+			w = -beta / (2*alpha)
+		else:
+			w1 = (-beta - sqrt(delta)) / (2*alpha)
+			w2 = (-beta + sqrt(delta)) / (2*alpha)
+			if w2 < 0:
+				w = w1
+			elif w1 < 0:
+				w = w2
 			else:
-				w1 = (-beta - sqrt(delta)) / (2*alpha)
-				w2 = (-beta + sqrt(delta)) / (2*alpha)
-				if w2 < 0:
-					w = w1
-				elif w1 < 0:
-					w = w2
-				else:
-					continue
-			# calculating the coordinates
-			x = Ax*w + Bx
-			y = Ay*w + By
-			z = Az*w + Bz
-			positions.append((x, y, z))
-		
-		if len(positions) == 0:
-			return ("no data or no solution", 0, 0, 0, 0)
-		# calculating the average position
-		n = len(positions)
-		x = sum([ xx for xx, yy, zz in positions ]) / n
-		y = sum([ yy for xx, yy, zz in positions ]) / n
-		z = sum([ zz for xx, yy, zz in positions ]) / n
-		# calculating the error (standard deviation)
-		error = sqrt(sum([ distance((x,y,z), p)**2 for p in positions ]) / n)
-		
-		return ("ok", x, y, z, error)
+				return ("two solutions", 0, 0, 0, 0)
+		# calculating the coordinates
+		x = Ax*w + Bx
+		y = Ay*w + By
+		z = Az*w + Bz
+		return ("ok", x,y,z, error)
 
 # test script
 calc = TDOACalculator()
