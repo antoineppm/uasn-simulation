@@ -50,3 +50,30 @@ w² = Ax²w² + 2AxBx.w + Bx² - 2x0Ax.w - 2x0Bx + x0² + Ay²w² + 2AyBy.w + By
 a.w² + b.w + c = 0
 
 w = (-b ± sqrt(b²-4ac))/(2a)
+
+## MATRIX EXPRESSION FOR ERROR CALCULATION
+
+M~  matrix with error components
+
+P0 = (x0, y0, z0)
+P1 = (x1, y1, z1)
+P2 = (x2, y2, z2)
+P3 = (x3, y3, z3)
+
+K~ = (k1, k2, k3) ± (sk1, sk2, sk3)
+
+M = 2(P0 - P1|P2|P3)
+
+I~ = -2K
+J~ = (|P1|², |P2|², |P3|²) - K~² - |P0|²
+
+A~ = I~/M
+B~ = J~/M
+
+a~ = A~² -1
+b~ = 2A~.B~ - 2A~.P0
+c~ = B~² - 2P0.B + P0²
+
+w~ = (-b ± sqrt(b²-4ac)) / (2a)
+
+P~ = A~.w~ + B~
