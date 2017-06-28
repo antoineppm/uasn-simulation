@@ -283,19 +283,3 @@ class TDOACalculator:
 		         "clean-p-position":    cleanPpos,
 		         "clean-p-error":       cleanPerr }
 
-# test script
-calc = TDOACalculator()
-
-# test data
-calc.addAnchor(0, 0, 0, 0)
-calc.addAnchor(1, 0, 500, 0)
-calc.addAnchor(2, 500, 250, 0)
-calc.addAnchor(3, 500, 250, -200)
-
-calc.addDataPoint(0, 0, 1.345, 0)
-calc.addDataPoint(0, 1, 1.745, 0.4)
-calc.addDataPoint(0, 2, 2.080, 0.8)
-calc.addDataPoint(0, 3, 2.280, 1.0)
-
-# calculation
-print calc.calculatePosition(1500)
