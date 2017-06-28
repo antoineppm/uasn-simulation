@@ -167,118 +167,121 @@ class TDOACalculator:
 		else:
 			return (msg, 0, 0, 0, 0)
 	
-	def calculatePositionWithError(self, velocity):
-		"""Calculates a position from the stored data
-		velocity    -- speed of transmission of the messages (m/s)
-		Returns a string ("ok" or error message) and four floats (calculated X,Y,Z coordinates plus error estimate if successful, 0 otherwise)
-		"""
-		kList = [ [], [], [] ]
-		for beacon in self.dataArchive.values():
-			if beacon[0] is None:
-				continue
-			t0, dt0 = beacon[0]
-			if beacon[1] is not None:
-				t1, dt1 = beacon[1]
-				kList[0].append(t0 - dt0 - t1 + dt1)
-			if beacon[2] is not None:
-				t2, dt2 = beacon[2]
-				kList[1].append(t0 - dt0 - t2 + dt2)
-			if beacon[3] is not None:
-				t3, dt3 = beacon[3]
-				kList[2].append(t0 - dt0 - t3 + dt3)
-		average = np.zeros((3))
-		stdev = np.zeros((3))
-		for i in xrange(3):
-			kl = kList[i]
-			length = len(kl)
-			if length == 0:
-				return ("not enough data", 0, 0, 0, 0)
-			average[i] = sum(kl) / length
-			stdev[i] = sqrt(sum([ (x - average[i])**2 for x in kl ]) / length)
-		K = velocity * unp.uarray(average, stdev)
-		msg, x, y, z, e = self.fourLaterateWithError(K)
-		if msg == "ok":
-			return ("ok", x, y, z, e)
-		else:
-			return (msg, 0, 0, 0, 0)
-	
 	def calculatePositionVerbose(self, velocity):
 		"""Calculates a position from the stored data
 		velocity    -- speed of transmission of the messages (m/s)
 		Returns a string ("ok" or error message) and four floats (calculated X,Y,Z coordinates plus error estimate if successful, 0 otherwise)
 		"""
-		## cakculate separate positions from each data point
-		dataP = 0
-		positions = []
+		## data to return
+		fullK = [ [], [], [] ]
+		cleanK = [ [], [], [] ]
 		
 		for beacon in self.dataArchive.values():
-			if sum([ 1 if x is None else 0 for x in beacon ]) > 0:
-				continue
-			dataP += 1
-			# k coefficients
-			t0, dt0 = beacon[0]
-			t1, dt1 = beacon[1]
-			t2, dt2 = beacon[2]
-			t3, dt3 = beacon[3]
-			k1 = velocity * (t0 - dt0 - t1 + dt1)
-			k2 = velocity * (t0 - dt0 - t2 + dt2)
-			k3 = velocity * (t0 - dt0 - t3 + dt3)
-			msg, x, y, z = self.fourLaterate(k1, k2, k3)
-			if msg == "ok":
-				positions.append((x, y, z))
+			k1 = None
+			k2 = None
+			k3 = None
 			
-		if len(positions) == 0:
-			return None
-		# calculating the average position
-		n = len(positions)
-		x = sum([ xx for xx, yy, zz in positions ]) / n
-		y = sum([ yy for xx, yy, zz in positions ]) / n
-		z = sum([ zz for xx, yy, zz in positions ]) / n
-		posAvg = (x, y, z)
-		# calculating the error (standard deviation)
-		posError = sqrt(sum([ distance(posAvg, p)**2 for p in positions ]) / n)
-		
-		## calculate single position from average k coeffs
-		# k coefficients
-		k1List = []
-		k2List = []
-		k3List = []
-		for beacon in self.dataArchive.values():
 			if beacon[0] is None:
 				continue
 			t0, dt0 = beacon[0]
+			
 			if beacon[1] is not None:
 				t1, dt1 = beacon[1]
-				k1List.append(t0 - dt0 - t1 + dt1)
+				k1 = (t0 - dt0 - t1 + dt1)
+				fullK[0].append(k1)
 			if beacon[2] is not None:
 				t2, dt2 = beacon[2]
-				k2List.append(t0 - dt0 - t2 + dt2)
+				k2 = (t0 - dt0 - t2 + dt2)
+				fullK[1].append(k2)
 			if beacon[3] is not None:
 				t3, dt3 = beacon[3]
-				k3List.append(t0 - dt0 - t3 + dt3)
-		if len(k1List) == 0 or len(k2List) == 0 or len(k3List) == 0:
-			return None
-		kNb = []
-		kAvg = []
-		kStDev = []
-		for kList in [k1List, k2List, k3List]:
-			n = len(kList)
-			m = sum(kList) / n
-			s = velocity * sqrt(sum([ (k-m)**2 for k in kList ]) / n)
-			kNb.append(n)
-			kAvg.append(m)
-			kStDev.append(s)
-		kError = sqrt(sum([ s**2 for s in kStDev ]))
-		k1 = velocity * kAvg[0]
-		k2 = velocity * kAvg[1]
-		k3 = velocity * kAvg[2]
+				k3 = (t0 - dt0 - t3 + dt3)
+				fullK[2].append(k3)
+			
+			if k1 is not None and k2 is not None and k3 is not None:
+				cleanK[0].append(k1)
+				cleanK[1].append(k2)
+				cleanK[2].append(k3)
 		
-		msg, x, y, z = self.fourLaterate(k1, k2, k3)
+		## make K-average calculations on full K set
+		avg = np.zeros(3)
+		stdev = np.zeros(3)
+		for i in xrange(3):
+			kl = fullK[i]
+			l = len(kl)
+			if l == 0:
+				return None
+			avg[i] = sum(kl) / l
+			stdev[i] = sqrt(sum([ (k-avg[i])**2 for k in kl ]) / l)
+		K = velocity * unp.uarray(avg, stdev)
+		msg, x, y, z, e = self.fourLaterateWithError(K)
+		
+		fullKavg = avg
+		fullKsdv = stdev
+		fullKpos = (x, y, z)
+		fullKerr = e
+		fullKresult = (fullKavg, fullKsdv, fullKpos, fullKerr)
+		
+		## make K-average calculations on clean K set
+		avg = np.zeros(3)
+		stdev = np.zeros(3)
+		for i in xrange(3):
+			kl = cleanK[i]
+			l = len(kl)
+			if l == 0:
+				return None
+			avg[i] = sum(kl) / l
+			stdev[i] = sqrt(sum([ (k-avg[i])**2 for k in kl ]) / l)
+		K = velocity * unp.uarray(avg, stdev)
+		msg, x, y, z, e = self.fourLaterateWithError(K)
+		
 		if msg != "ok":
 			return None
 		
-		posEst = (x, y, z)
-		return (positions, posAvg, posError, kNb, kAvg, kStDev, kError, posEst)
+		cleanKavg = avg
+		cleanKsdv = stdev
+		cleanKpos = (x, y, z)
+		cleanKerr = e
+		cleanKresult = (cleanKavg, cleanKsdv, cleanKpos, cleanKerr)
+		
+		## make P-average calculations on clean K set
+		xList = []
+		yList = []
+		zList = []
+		n = 0
+		
+		for i in xrange(len(cleanK[0])):
+			K = velocity * np.array([ kl[i] for kl in cleanK ])
+			msg, x, y, z, e = self.fourLaterateWithError(K)
+			if e > 1e-8:
+				print e
+			if msg == "ok":
+				xList.append(x)
+				yList.append(y)
+				zList.append(z)
+				n += 1
+		
+		if n == 0:
+			return None
+		
+		cleanPset = [ (xList[i], yList[i], zList[i]) for i in xrange(n) ]
+		cleanPpos = (sum(xList)/n, sum(yList)/n, sum(zList)/n)
+		cleanPerr = sqrt(sum([ distance(p, cleanPpos) for p in cleanPset ]))
+		cleanPresult = (cleanPset, cleanPpos, cleanPerr)
+		
+		return { "full-k-set":          fullK,
+		         "full-k-average":      fullKavg,
+		         "full-k-stdev":        fullKsdv,
+		         "full-k-position":     fullKpos,
+		         "full-k-error":        fullKerr,
+		         "clean-k-set":         cleanK,
+		         "clean-k-average":     cleanKavg,
+		         "clean-k-stdev":       cleanKsdv,
+		         "clean-k-position":    cleanKpos,
+		         "clean-k-error":       cleanKerr,
+		         "clean-p-set":         cleanPset,
+		         "clean-p-position":    cleanPpos,
+		         "clean-p-error":       cleanPerr }
 
 # test script
 calc = TDOACalculator()
