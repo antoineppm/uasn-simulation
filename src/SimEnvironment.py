@@ -3,6 +3,7 @@
 from heapq import heappush, heappop
 from random import uniform, gauss
 from math import sqrt
+import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -25,10 +26,13 @@ class SimEnvironment:
 		    "sos":          1500,       # speed of sound in water (m/s)
 		    "range":        1000,       # maximum range a signal can reach (m)
 		    "reliability":  1,          # probability of a signal reaching its destination (0 to 1)
-		    "sigma":		0.05,       # standard deviation of the time-of-arrival noise
+		    "sigma":        0.05,       # standard deviation of the initial speed of sound randomization
 		    "tick":         0.1         # duration between two activations of the nodes
 		}
 		self.params.update(params)      # let user-provided parameters override default parameters
+		
+		s = self.params["sigma"]
+		self.speedMatrix = 1 + s * np.random.randn(2,2,2)   # create a 2x2x2 array of normal (1,s) random values
 		
 		self.nodes = []
 		self.events = []                # managed with heapq
@@ -70,6 +74,15 @@ class SimEnvironment:
 				recipient.receive(time, message)
 		print "...end"
 	
+	def speedOfSound(self, position):
+		x, y, z = position
+		v = self.speedMatrix
+		# we average the matrix along each axis
+		v = np.average(v, axis=0, weights=(x, self.maxX-x))
+		v = np.average(v, axis=0, weights=(y, self.maxY-y))
+		v = np.average(v, axis=0, weights=(z, self.minZ-z))
+		return v * self.params["sos"]
+	
 	def broadcast(self, time, position, message):
 		"""Schedules a message to be recieved by all nodes in range
 		time        -- date of transmission (s)
@@ -79,7 +92,7 @@ class SimEnvironment:
 		for node in self.nodes:
 			d = distance(node.position, position)
 			if d > 0 and d <= self.params["range"] and uniform(0,1) < self.params["reliability"]:
-				toa = time + gauss(1, self.params["sigma"]) * d / self.params["sos"]
+				toa = time + d / self.speedOfSound(node.position)
 				heappush(self.events, (toa, message, node))
 	
 	def show(self):
