@@ -204,8 +204,8 @@ class TDOACalculator:
 				cleanK[2].append(k3)
 		
 		## make K-average calculations on full K set
-		avg = np.zeros(3)
-		stdev = np.zeros(3)
+		avg = [0, 0, 0]
+		stdev = [0, 0, 0]
 		for i in xrange(3):
 			kl = fullK[i]
 			l = len(kl)
@@ -220,11 +220,10 @@ class TDOACalculator:
 		fullKsdv = stdev
 		fullKpos = (x, y, z)
 		fullKerr = e
-		fullKresult = (fullKavg, fullKsdv, fullKpos, fullKerr)
 		
 		## make K-average calculations on clean K set
-		avg = np.zeros(3)
-		stdev = np.zeros(3)
+		avg = [0, 0, 0]
+		stdev = [0, 0, 0]
 		for i in xrange(3):
 			kl = cleanK[i]
 			l = len(kl)
@@ -242,7 +241,6 @@ class TDOACalculator:
 		cleanKsdv = stdev
 		cleanKpos = (x, y, z)
 		cleanKerr = e
-		cleanKresult = (cleanKavg, cleanKsdv, cleanKpos, cleanKerr)
 		
 		## make P-average calculations on clean K set
 		xList = []
@@ -267,7 +265,6 @@ class TDOACalculator:
 		cleanPset = [ (xList[i], yList[i], zList[i]) for i in xrange(n) ]
 		cleanPpos = (sum(xList)/n, sum(yList)/n, sum(zList)/n)
 		cleanPerr = sqrt(sum([ distance(p, cleanPpos) for p in cleanPset ]))
-		cleanPresult = (cleanPset, cleanPpos, cleanPerr)
 		
 		return { "full-k-set":          fullK,
 		         "full-k-average":      fullKavg,
