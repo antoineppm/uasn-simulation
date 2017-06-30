@@ -31,8 +31,7 @@ class SimEnvironment:
 		}
 		self.params.update(params)      # let user-provided parameters override default parameters
 		
-		s = self.params["sigma"]
-		self.speedMatrix = 1 + s * np.random.randn(2,2,2)   # create a 2x2x2 array of normal (1,s) random values
+		self.speedMatrix = self.params["tick"] * self.params["sigma"] * np.random.randn(2,2,2)        # create a 2x2x2 array of normal (1,s) random values
 		
 		self.nodes = []
 		self.events = []                # managed with heapq
@@ -59,24 +58,30 @@ class SimEnvironment:
 		"""Runs the simulation
 		timeout     -- duration of the simulation (s)
 		"""
-		heappush(self.events, (0, "", None))    # initialize the event list
+		heappush(self.events, (0, "", None))    # initialize the event list with a tick
 		time = 0
 		print "start..."
 		while time <= timeout:
 			time, message, recipient = heappop(self.events)
-			if len(message) == 0:
+			if len(message) == 0:               # tick
+				tick = self.params["tick"]
 				for node in self.nodes:
 					transmission = node.tick(time)
 					if len(transmission) > 0:
 						self.broadcast(time, node.position, transmission)
-				heappush(self.events, (time + self.params["tick"], "", None))
+				heappush(self.events, (time + tick, "", None))
+				# update the speed of sound
+				N = 10                  # determines the variation speed
+				self.speedMatrix *= (N - tick)
+				self.speedMatrix += tick * self.params["sigma"] * np.random.randn(2,2,2)
+				self.speedMatrix /= N
 			else:
 				recipient.receive(time, message)
 		print "...end"
 	
 	def speedOfSound(self, position):
 		x, y, z = position
-		v = self.speedMatrix
+		v = self.speedMatrix + np.ones((2,2,2))
 		# we average the matrix along each axis
 		v = np.average(v, axis=0, weights=(x, self.maxX-x))
 		v = np.average(v, axis=0, weights=(y, self.maxY-y))
