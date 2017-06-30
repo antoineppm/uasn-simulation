@@ -26,7 +26,7 @@ class SimEnvironment:
 		    "sos":          1500,       # speed of sound in water (m/s)
 		    "range":        1000,       # maximum range a signal can reach (m)
 		    "reliability":  1,          # probability of a signal reaching its destination (0 to 1)
-		    "sigma":        0.05,       # standard deviation of the initial speed of sound randomization
+		    "sigma":        0.02,       # standard deviation of the initial speed of sound randomization
 		    "tick":         0.1         # duration between two activations of the nodes
 		}
 		self.params.update(params)      # let user-provided parameters override default parameters
