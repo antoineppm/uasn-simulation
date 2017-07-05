@@ -48,7 +48,7 @@ class AnchorNode(UWNode):
 			x, y, z, delay = [ float(i) for i in message.split()[2:6] ]
 			if self.distanceToPrevious is None:
 				self.distanceToPrevious = distance(self.position, (x,y,z))
-			self.timeOrigin = time - (self.distanceToPrevious / self.speedOfSound) - delay
+			self.timeOrigin = time - (self.distanceToPrevious / self.simParams["sos"]) - delay
 	
 	def display(self, plot):
 		"""Displays a representation of the node in a 3D plot
@@ -99,7 +99,7 @@ class SensorNode(UWNode):
 		Never transmits
 		"""
 		if time >= self.timeout:
-			error, x, y, z, e = self.tdoaCalc.calculatePosition(self.speedOfSound)
+			error, x, y, z, e = self.tdoaCalc.calculatePosition(self.simParams["sos"])
 			if error != "ok":
 				print self.name + " could not find its position: " + error
 				print "       actual position: " + "%.3f, %.3f, %.3f" % self.position

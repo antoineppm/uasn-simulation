@@ -50,7 +50,7 @@ class SimEnvironment:
 			z = uniform(self.minZ, 0)
 			node.position = (x,y,z)
 		
-		node.speedOfSound = self.params["sos"]
+		node.simParams = self.params
 		
 		self.nodes.append(node)
 	
