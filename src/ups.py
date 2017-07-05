@@ -107,6 +107,7 @@ class SensorNode(UWNode):
 				print self.name + " found position: " + "%.3f, %.3f, %.3f" % (x, y, z)
 				print "       actual position: " + "%.3f, %.3f, %.3f" % self.position
 				print "                 error: " + "%.3f" % distance(self.position, (x,y,z))
+				print "        error estimate: " + "%.3f" % e
 				self.positionEstimate = (x,y,z)
 				self.errorEstimate = e
 			self.timeout = float('inf')
@@ -136,4 +137,5 @@ class SensorNode(UWNode):
 			ex, ey, ez = self.positionEstimate
 			plot.scatter(x, y, z, c='b', marker='^', lw=0)
 			plot.scatter(ex, ey, ez, c='k', marker='+')
+			plot.scatter(ex, ey, ez, c=(0,0,1,0.2), marker='o', lw=0, s=50*self.errorEstimate)
 			plot.plot([x,ex], [y,ey], [z,ez], 'k:')
