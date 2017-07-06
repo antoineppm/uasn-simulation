@@ -1,0 +1,55 @@
+This is a description of a multi-stage, TDOA-based localization scheme
+
+WE ARE ASSUMING THAT TRANSMISSIONS ARE NEVER LOST
+
+Node life cycle:
+unlocalized -> localized -> anchor -> localized (repeat as needed)
+
+Some nodes must be localized at the beginning of the simulation (initial anchors)
+
+COMMUNICATION FORMAT
+
+transmission have the following format:
+"sender object [data]"
+The data is zero or more elements separated by whitespace
+
+The localization process consists in two repeating steps:
+- anchor selection
+- beaconing sequence
+
+1) MASTER ANCHOR SELECTION
+
+For the very first localization cycle, a designated master anchor starts the process by sending out a message (subject: "anchor", data: 0, x, y, z)
+For the subsequent localization cycles, the newly located nodes become master anchor candidates (upon the last beacon) and go through the selection process below using the distance to the center of the previous anchors for D.
+
+2) ANCHOR SELECTION PROCESS
+
+A localized nodes can become an anchor by following the following steps:
+
+CANDIDACY: upon receiving a "anchor" message of level N-1, the node becomes an anchor candidate of level N (needs to have been a candidate for the previous levels except 0) and sets a timer: K*f(R,D)/v
+- v speed of sound
+- R max transmission range
+- D distance to the activating anchor
+- f function that is 0 at the desired optimal range, positive otherwise
+- K a factor large enough to prevent most premature confirmations
+If a "confirm" message is received before the timer ends, the node is eliminated
+
+ELIMINATION: If the timer runs out before being interrupted, it sends a confirmation message (subject: "confirm", data: f(R,D)) and sets a timer: 2R
+If a "confirm" message is received before the timer ends, and bears a smaller f factor, the node is eliminated
+
+REPETITION: If the timer runs out without being eliminated, the candidate becomes the anchor of level N and sends out a message (subject: "anchor", data: N, x, y, z, name of parent anchor)
+
+Unlocalized nodes listen in to this process and register the name and position of the anchors they will be using.
+
+3) BEACONING SEQUENCE
+
+The master anchor sends out a fixed number of messages at regular intervals (subject: "beacon", data: count, 0).
+The subsequent anchors, when receiving a message from their parent, calculate the total delay since the transmission by the master anchor, and send a message in turn (subject: "beacon", data: count, delay).
+Once unlocalized nodes have received all beacons, they attempt to calculate their position using this data.
+
+NOTES
+
+Since only newly localized nodes can be master candidates, the process will naturally end when no more nodes are localized.
+It might be preferable to use different f functions for master and slave anchors:
+- master: f = 0 at max range, to ensure the new anchor sets appear on the borders of the localized area
+- slaves: f = 0 at mid range, so the anchor set is tight enough to locate nodes outside their envelope, but not so much that localization is hugely imprecise
