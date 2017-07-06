@@ -40,6 +40,55 @@ class LSLSNode(UWNode):
 		time        -- date of reception (s)
 		message     -- message received
 		"""
+		sp = message.split()
+		sender = sp[0]
+		subject = sp[1]
+		data = sp[2:]
+		if subject == "anchor":
+			[level, x, y, z, parent] = data
+			if self.status == "unlocalized":
+				pass
+			elif self.status == "localized" and level = self.level - 1:
+				pass
+			elif self.status == "candidate" and level = self.level:
+				pass
+			elif self.status == "confirming":
+				pass
+			elif self.status == "anchor":
+				pass
+		elif subject == "confirm":
+			[f] = data
+			if self.status == "unlocalized":
+				pass
+			elif self.status == "localized":
+				pass
+			elif self.status == "candidate":
+				pass
+			elif self.status == "confirming":
+				pass
+			elif self.status == "anchor":
+				pass
+		elif subject == "beacon":
+			[count, level, delay] = data
+			if self.status == "unlocalized":
+				pass
+			elif self.status == "localized":
+				pass
+			elif self.status == "candidate":
+				pass
+			elif self.status == "confirming":
+				pass
+			elif self.status == "anchor":
+				pass
+	
+	def getCandidateTimer(self, d):
+		k = 10      # must be adjusted for best performances
+		r = self.simParams["range"]
+		v = self.simParams["sos"]
+		if self.level == 0:
+			return k * (r - d) / v
+		else:
+			return k * (r - 4*d + 4*d*d/r) / v
 	
 	def display(self, plot):
 		"""Displays a representation of the node in a 3D plot
