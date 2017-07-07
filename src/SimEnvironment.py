@@ -54,17 +54,22 @@ class SimEnvironment:
 		
 		self.nodes.append(node)
 	
-	def run(self, timeout, verbose = False):
+	def run(self, timeout, verbose = False, show = 0):
 		"""Runs the simulation
 		timeout     -- duration of the simulation (s)
 		verbose     -- output messages sent and received during the simulation
+		show        -- duration between showing snapshots of the simulation (set to 0 to disable)
 		"""
 		heappush(self.events, (0, "", None))    # initialize the event list with a tick
 		time = 0
+		showTime = 0
 		if verbose:
 			print "start..."
 		while time <= timeout:
 			time, message, recipient = heappop(self.events)
+			if show > 0 and time >= showTime:
+				self.show()
+				showTime += show
 			if len(message) == 0:               # tick
 				tick = self.params["tick"]
 				for node in self.nodes:
@@ -121,6 +126,8 @@ class SimEnvironment:
 		ax.set_aspect('equal')
 		ax.autoscale(tight=True)
 		# display the plot
+		mng = plt.get_current_fig_manager()
+		mng.resize(*mng.window.maxsize())
 		plt.show()
 	
 def distance(position1, position2):
