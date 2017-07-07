@@ -54,13 +54,15 @@ class SimEnvironment:
 		
 		self.nodes.append(node)
 	
-	def run(self, timeout):
+	def run(self, timeout, verbose = False):
 		"""Runs the simulation
 		timeout     -- duration of the simulation (s)
+		verbose     -- output messages sent and received during the simulation
 		"""
 		heappush(self.events, (0, "", None))    # initialize the event list with a tick
 		time = 0
-		print "start..."
+		if verbose:
+			print "start..."
 		while time <= timeout:
 			time, message, recipient = heappop(self.events)
 			if len(message) == 0:               # tick
@@ -69,6 +71,8 @@ class SimEnvironment:
 					transmission = node.tick(time)
 					if len(transmission) > 0:
 						self.broadcast(time, node.position, transmission)
+						if verbose:
+							print "%.3f" % time + " >> " + transmission
 				heappush(self.events, (time + tick, "", None))
 				# update the speed of sound
 				N = 10                  # determines the variation speed
@@ -76,8 +80,11 @@ class SimEnvironment:
 				self.speedMatrix += tick * self.params["sigma"] * np.random.randn(2,2,2)
 				self.speedMatrix /= N
 			else:
+				if verbose:
+					print "%.3f" % time + "    " + message + " >> " + recipient.name
 				recipient.receive(time, message)
-		print "...end"
+		if verbose:
+			print "...end"
 	
 	def speedOfSound(self, position):
 		x, y, z = position
