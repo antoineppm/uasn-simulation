@@ -19,7 +19,7 @@ The localization process consists in two repeating steps:
 
 1) MASTER ANCHOR SELECTION
 
-For the very first localization cycle, a designated master anchor starts the process by sending out a message (subject: "anchor", data: 0, x, y, z)
+For the very first localization cycle, a designated master anchor starts the process by sending out a message (subject: "anchor", data: 0, x, y, z, "")
 For the subsequent localization cycles, the newly located nodes become master anchor candidates (upon the last beacon) and go through the selection process below using the distance to the center of the previous anchors for D.
 
 2) ANCHOR SELECTION PROCESS
@@ -34,10 +34,10 @@ CANDIDACY: upon receiving a "anchor" message of level N-1, the node becomes an a
 - K a factor large enough to prevent most premature confirmations
 If a "confirm" message is received before the timer ends, the node is eliminated
 
-ELIMINATION: If the timer runs out before being interrupted, it sends a confirmation message (subject: "confirm", data: f(R,D)) and sets a timer: 2R
+ELIMINATION: If the timer runs out before being interrupted, it sends a confirmation message (subject: "confirm", data: f(R,D), parent) and sets a timer: 2R
 If a "confirm" message is received before the timer ends, and bears a smaller f factor, the node is eliminated
 
-REPETITION: If the timer runs out without being eliminated, the candidate becomes the anchor of level N and sends out a message (subject: "anchor", data: N, x, y, z, name of parent anchor)
+REPETITION: If the timer runs out without being eliminated, the candidate becomes the anchor of level N and sends out a message (subject: "anchor", data: N, x, y, z, parent)
 
 Unlocalized nodes listen in to this process and register the name and position of the anchors they will be using.
 
@@ -54,33 +54,41 @@ It might be preferable to use different f functions for master and slave anchors
 - master: f = 0 at max range, to ensure the new anchor sets appear on the borders of the localized area
 - slaves: f = 0 at mid range, so the anchor set is tight enough to locate nodes outside their envelope, but not so much that localization is hugely imprecise
 
+HANDLING COLLISIONS
+
+If a node is in range of several would-be anchors, there needs to be a way to keep the anchr set consistent.
+- all "anchor" and "confirm" messages include the name of the parent anchor (if level 0, an empty string).
+- if a "candidate" node receives an "anchor" message of parent level, it figures out if it is a better fit (if the timer would end earlier) and adopts the new parent if it is the case.
+- a "confirming" node is locked into its parent, however.
+- "localized" nodes establish lists of all the anchor chains they can hear. Once one of these lists is complete, they become a "listening" node. After a certain time without receiving any "anchor" message, the anchor lists are wiped.
+
 STATUS SPECIFICATION
 
-"unlocalized"
-If completed TDOA algorithm:			-> "candidate" (0)
+UNLOCALIZED
+If timer runs out				wipe anchor lists
+If anchor list complete				-> LISTENING
 
-"localized" (N)
-If timer finished:				reset level to 1
-If receives "anchor" (N-1) message:		-> "candidate" (N)
+LISTENING
+If TDOA algorithm successful			-> CANDIDATE (0)
+If TDOA algorithm unsuccessful			-> UNLOCALIZED
 
-"candidate" (N)
-If timer interrupted:				-> "localized" (N%3+1)
-If timer finished:				-> "confirming" (N)
+LOCALIZED (N)
+If "anchor" (N-1) message			-> CANDIDATE (N)
+If timer runs out				reset level to 1
 
-"confirming" (N)
-If timer interrupted:				-> "localized" (N%3+1)
-If timer finished:				-> "anchor" (N)
+CANDIDATE (N)
+If "anchor" (N-1) message, better		change parent
+If "anchor" (N) message				-> LOCALIZED (N%3+1)
+If "confirm" (N) message			-> LOCALIZED (N%3+1)
+If timer runs out				-> COFIRMING (N)
 
-"anchor" (N)
-If timer finished:				start beaconing
-If beaconing finished:				-> "localized" (1)
+CONFIRMING (N)
+If "confirm" (N) message, better		-> LOCALIZED (N%3+1)
+If timer runs out				-> ANCHOR (N)
 
-
-
-
-
-
-
+ANCHOR (N)
+If timer runs out				start beaconing
+If beaconing finished				-> LOCALIZED (1)
 
 
 
