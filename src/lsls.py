@@ -4,7 +4,14 @@ from SimEnvironment import SimEnvironment, distance
 from UWNode import UWNode
 from TDOACalculator import TDOACalculator
 
+import numpy as np
+
 class LSLSNode(UWNode):
+	params = {
+		"K":                10,
+		"beaconPeriod":     1.,
+		"beaconNumber":     5
+	}
 	"""All-purpose node localizing itself using the LSLS scheme"""
 	def __init__(self, id, position = (-1,-1,0), localized = False):
 		"""Create a node
@@ -15,8 +22,9 @@ class LSLSNode(UWNode):
 		name = "node" + "".join(str(id).split())    # making sure the name does not contain any whitespace
 		UWNode.__init__(self, name, position)
 		self.timer = float('inf')
+		self.beaconCount = 0
 		self.tdoaCalc = None
-		self.master = None
+		self.master = []
 		if localized:
 			self.positionEstimate = position
 			self.errorEstimate = 0
@@ -43,13 +51,32 @@ class LSLSNode(UWNode):
 			elif self.status == "LOCALIZED":
 				pass
 			elif self.status == "CANDIDATE":
-				pass
+				self.status = "CONFIRMING"
+				self.timer = time + 2 * self.standardTimer()
+				subject = "confirm"
+				parent, d = self.master
+				data = [self.level, self.candidateTimer(d), parent]
 			elif self.status == "CONFIRMING":
-				pass
+				self.status = "ANCHOR"
+				self.timer = float('inf') if self.level > 0 else time + (3 * LSLSNode.params["K"] + 10) * self.standardTimer()
+				subject = "anchor"
+				parent, d = self.master
+				x, y, z = self.positionEstimate
+				data = [self.level, x, y, z, parent]
 			elif self.status == "ANCHOR":
-				pass
+				subject = "beacon"
+				data = [self.beaconCount, self.level, time - self.timer]
+				if self.beaconCount == LSLSNode.params["beaconNumber"] - 1:
+					self.status = "LOCALIZED"
+					self.level = 1
+					self.timer = float('inf')
+				elif self.level == 0:
+					self.beaconCount += 1
+					self.timer += LSLSNode.params["beaconPeriod"]
+				else:
+					self.timer = float('inf')
 		if len(subject) > 0:
-			return " ".join([self.name, subject] + data)
+			return " ".join([self.name, subject] + [ str(e) for e in data ])
 		else:
 			return ""
 	
@@ -64,20 +91,59 @@ class LSLSNode(UWNode):
 		data = sp[2:]
 		if subject == "anchor":
 			[level, x, y, z, parent] = data
+			level = int(level)
+			x = float(x)
+			y = float(y)
+			z = float(z)
 			if self.status == "UNLOCALIZED":
-				pass
+				if level == 0:
+					self.master.append([(sender, (x,y,z))])
+				else:
+					for chain in self.master:
+						if len(chain) == level and chain[-1][0] == parent:
+							chain.append((sender, (x,y,z)))
+						if len(chain) == 4:
+							self.status = "LISTENING"
+							self.tdoaCalc = TDOACalculator()
+							for i in xrange(4):
+								a, (x,y,z) = chain[i]
+								self.tdoaCalc.addAnchor(i, x, y, z)
+							self.master = chain
 			elif self.status == "LISTENING":
 				pass
 			elif self.status == "LOCALIZED":
-				pass
+				d = distance(self.positionEstimate, (x,y,z))
+				if self.level == level + 1:
+					# LOCALIZED node received a "anchor" message of lower level: becomes candidate
+					self.status = "CANDIDATE"
+					self.master = (sender, d)
+					self.timer = time + self.candidateTimer(d)
 			elif self.status == "CANDIDATE":
-				pass
+				d = distance(self.positionEstimate, (x,y,z))
+				if level == self.level + 1:
+					# CANDIDATE node received a "anchor" message of lower level: consider switching
+					t = time + self.candidateTimer(d)
+					if t < self.timer:
+						self.master = (sender, d)
+						self.timer = t
+				elif level == self.level and parent == self.master[0]:
+					# CANDIDATE node received a concurrent "anchor" message: become next-level candidate, or reset to LOCALIZED if the chain is complete
+					if self.level == 3:
+						self.status = "LOCALIZED"
+						self.level = 1
+						self.timer = float('inf')
+					else:
+						self.level += 1
+						self.master = (sender, d)
+						self.timer = time + self.candidateTimer(d)
 			elif self.status == "CONFIRMING":
-				pass
+				pass    # it should not be possible to receive a "anchor" message with the same parent during the confirmation stage
 			elif self.status == "ANCHOR":
 				pass
 		elif subject == "confirm":
-			[f, parent] = data
+			[level, f, parent] = data
+			level = int(level)
+			f = float(f)
 			if self.status == "UNLOCALIZED":
 				pass
 			elif self.status == "LISTENING":
@@ -85,34 +151,92 @@ class LSLSNode(UWNode):
 			elif self.status == "LOCALIZED":
 				pass
 			elif self.status == "CANDIDATE":
-				pass
+				if level == self.level and parent == self.master[0]:
+					# CANDIDATE node received a concurrent "confirm" message: abandon, prepare for next round
+					self.status = "LOCALIZED"
+					self.level = (self.level % 3) + 1
+					self.timer = float('inf')
 			elif self.status == "CONFIRMING":
-				pass
+				if level == self.level and parent == self.master[0]:
+					# CONFIRMING node received a concurrent "confirm" message: consider abandoning
+					if self.candidateTimer(self.master[1]) > f:
+						self.status = "LOCALIZED"
+						self.level = (self.level % 3) + 1
+						self.timer = float('inf')
 			elif self.status == "ANCHOR":
 				pass
 		elif subject == "beacon":
 			[count, level, delay] = data
+			count = int(count)
+			level = int(level)
+			delay = float(delay)
 			if self.status == "UNLOCALIZED":
-				pass
+				self.master = []
 			elif self.status == "LISTENING":
-				pass
+				if self.master[level][0] == sender:
+					self.tdoaCalc.addDataPoint(count, level, time, delay)
+					if level == 3 and count == LSLSNode.params["beaconNumber"] - 1:
+						# beacon sequence finished, LISTENING node tries to calculate its position
+						# import json
+						# print json.dumps(self.tdoaCalc.dataArchive, sort_keys=True, indent=4)
+						msg, x, y, z, e = self.tdoaCalc.calculatePosition(self.simParams["sos"])
+						if msg != "ok":
+							# localization failed, revert to UNLOCALIZED status
+							self.status = "UNLOCALIZED"
+							self.master = []
+						else:
+							# localization successful, become CANDIDATE level 0
+							self.positionEstimate = (x,y,z)
+							self.errorEstimate = e
+							self.status = "CANDIDATE"
+							self.level = 0
+							# calculate the anchor center
+							center = sum([ np.array(p) for a,p in self.master ]) / 4
+							d = distance(self.positionEstimate, center)
+							self.master = ("master", d)
+							self.timer = time + self.candidateTimer(d)
 			elif self.status == "LOCALIZED":
-				pass
+				self.level = 1
 			elif self.status == "CANDIDATE":
 				pass
 			elif self.status == "CONFIRMING":
 				pass
 			elif self.status == "ANCHOR":
-				pass
+				parent, d = self.master
+				if parent == sender and self.level == level + 1:
+					self.timer = time - d/self.simParams["sos"] - delay         # trigger a beacon at next tick, and indicate the time origin to use
+					self.beaconCount = count
 	
-	def getCandidateTimer(self, d):
-		k = 10      # must be adjusted for best performances
-		r = self.simParams["range"]
-		v = self.simParams["sos"]
+	def standardTimer(self):
+		"""A duration equal to the max transmission range divided by the speed of sound.
+		Multiples of this are used as timers for various stages
+		Returns: time (s)
+		"""
+		r = float(self.simParams["range"])
+		v = float(self.simParams["sos"])
+		return r/v
+	
+	def candidateTimer(self, d):
+		"""The timer used during the "CANDIDATE" stage, depends on the position of the parent anchor and the candidate level
+		d           -- distance the parent anchor
+		Returns: time (s)
+		"""
+		k = LSLSNode.params["K"]
+		r = float(self.simParams["range"])
+		v = float(self.simParams["sos"])
 		if self.level == 0:
 			return k * (r - d) / v
 		else:
 			return k * (r - 4*d + 4*d*d/r) / v
+	
+	def makeMaster(self):
+		"""Makes the node start the simulation as a master anchor node
+		Should be called on a single localized node
+		"""
+		self.status = "CONFIRMING"      # necessary to trigger the anchor message
+		self.level = 0
+		self.master = ("master", 0)
+		self.timer = -1
 	
 	def display(self, plot):
 		"""Displays a representation of the node in a 3D plot
