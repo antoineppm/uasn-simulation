@@ -20,12 +20,12 @@ class LSLSNode(UWNode):
 		if localized:
 			self.positionEstimate = position
 			self.errorEstimate = 0
-			self.status = "localized"
+			self.status = "LOCALIZED"
 			self.level = 1
 		else:
 			self.positionEstimate = None
 			self.errorEstimate = None
-			self.status = "unlocalized"
+			self.status = "UNLOCALIZED"
 			self.level = 0
 	
 	def tick(self, time):
@@ -33,7 +33,25 @@ class LSLSNode(UWNode):
 		time        -- date of polling (s)
 		Returns a string to be broadcast (if the string is empty, it is not broadcast)
 		"""
-		return ""
+		subject = ""
+		data = []
+		if time > self.timer:
+			if self.status == "UNLOCALIZED":
+				pass
+			elif self.status == "LISTENING":
+				pass
+			elif self.status == "LOCALIZED":
+				pass
+			elif self.status == "CANDIDATE":
+				pass
+			elif self.status == "CONFIRMING":
+				pass
+			elif self.status == "ANCHOR":
+				pass
+		if len(subject) > 0:
+			return " ".join([self.name, subject] + data)
+		else:
+			return ""
 	
 	def receive(self, time, message):
 		"""Function called when a message broadcast by another node arrives at the node
@@ -46,39 +64,45 @@ class LSLSNode(UWNode):
 		data = sp[2:]
 		if subject == "anchor":
 			[level, x, y, z, parent] = data
-			if self.status == "unlocalized":
+			if self.status == "UNLOCALIZED":
 				pass
-			elif self.status == "localized" and level = self.level - 1:
+			elif self.status == "LISTENING":
 				pass
-			elif self.status == "candidate" and level = self.level:
+			elif self.status == "LOCALIZED":
 				pass
-			elif self.status == "confirming":
+			elif self.status == "CANDIDATE":
 				pass
-			elif self.status == "anchor":
+			elif self.status == "CONFIRMING":
+				pass
+			elif self.status == "ANCHOR":
 				pass
 		elif subject == "confirm":
-			[f] = data
-			if self.status == "unlocalized":
+			[f, parent] = data
+			if self.status == "UNLOCALIZED":
 				pass
-			elif self.status == "localized":
+			elif self.status == "LISTENING":
 				pass
-			elif self.status == "candidate":
+			elif self.status == "LOCALIZED":
 				pass
-			elif self.status == "confirming":
+			elif self.status == "CANDIDATE":
 				pass
-			elif self.status == "anchor":
+			elif self.status == "CONFIRMING":
+				pass
+			elif self.status == "ANCHOR":
 				pass
 		elif subject == "beacon":
 			[count, level, delay] = data
-			if self.status == "unlocalized":
+			if self.status == "UNLOCALIZED":
 				pass
-			elif self.status == "localized":
+			elif self.status == "LISTENING":
 				pass
-			elif self.status == "candidate":
+			elif self.status == "LOCALIZED":
 				pass
-			elif self.status == "confirming":
+			elif self.status == "CANDIDATE":
 				pass
-			elif self.status == "anchor":
+			elif self.status == "CONFIRMING":
+				pass
+			elif self.status == "ANCHOR":
 				pass
 	
 	def getCandidateTimer(self, d):
