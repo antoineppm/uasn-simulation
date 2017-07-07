@@ -30,11 +30,11 @@ CANDIDACY: upon receiving a "anchor" message of level N-1, the node becomes an a
 - v speed of sound
 - R max transmission range
 - D distance to the activating anchor
-- f function that is 0 at the desired optimal range, positive otherwise
+- f function that is 0 at the desired optimal range, positive otherwise up to R
 - K a factor large enough to prevent most premature confirmations
 If a "confirm" message is received before the timer ends, the node is eliminated
 
-ELIMINATION: If the timer runs out before being interrupted, it sends a confirmation message (subject: "confirm", data: f(R,D), parent) and sets a timer: 2R
+ELIMINATION: If the timer runs out before being interrupted, it sends a confirmation message (subject: "confirm", data: N, f(R,D), parent) and sets a timer: 2R
 If a "confirm" message is received before the timer ends, and bears a smaller f factor, the node is eliminated
 
 REPETITION: If the timer runs out without being eliminated, the candidate becomes the anchor of level N and sends out a message (subject: "anchor", data: N, x, y, z, parent)
@@ -44,7 +44,7 @@ Unlocalized nodes listen in to this process and register the name and position o
 3) BEACONING SEQUENCE
 
 The master anchor sends out a fixed number of messages at regular intervals (subject: "beacon", data: count, 0).
-The subsequent anchors, when receiving a message from their parent, calculate the total delay since the transmission by the master anchor, and send a message in turn (subject: "beacon", data: count, delay).
+The subsequent anchors, when receiving a message from their parent, calculate the total delay since the transmission by the master anchor, and send a message in turn (subject: "beacon", data: count, N, delay).
 Once unlocalized nodes have received all beacons, they attempt to calculate their position using this data.
 
 NOTES
@@ -65,8 +65,8 @@ If a node is in range of several would-be anchors, there needs to be a way to ke
 STATUS SPECIFICATION
 
 UNLOCALIZED
-If timer runs out				wipe anchor lists
 If anchor list complete				-> LISTENING
+If "beacon" message				wipe anchor lists
 
 LISTENING
 If TDOA algorithm successful			-> CANDIDATE (0)
@@ -74,13 +74,13 @@ If TDOA algorithm unsuccessful			-> UNLOCALIZED
 
 LOCALIZED (N)
 If "anchor" (N-1) message			-> CANDIDATE (N)
-If timer runs out				reset level to 1
+If "beacon" message				reset level to 1
 
 CANDIDATE (N)
 If "anchor" (N-1) message, better		change parent
-If "anchor" (N) message				-> LOCALIZED (N%3+1)
+If "anchor" (N) message				-> LOCALIZED (1) or CANDIDATE (N+1)
 If "confirm" (N) message			-> LOCALIZED (N%3+1)
-If timer runs out				-> COFIRMING (N)
+If timer runs out				-> CONFIRMING (N)
 
 CONFIRMING (N)
 If "confirm" (N) message, better		-> LOCALIZED (N%3+1)
@@ -89,9 +89,6 @@ If timer runs out				-> ANCHOR (N)
 ANCHOR (N)
 If timer runs out				start beaconing
 If beaconing finished				-> LOCALIZED (1)
-
-
-
 
 
 
