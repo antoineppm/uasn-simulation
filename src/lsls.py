@@ -32,7 +32,7 @@ class LSLSNode(UWNode):
 			self.level = 1
 		else:
 			self.positionEstimate = None
-			self.errorEstimate = None
+			self.errorEstimate = -1
 			self.status = "UNLOCALIZED"
 			self.level = 0
 	
@@ -243,4 +243,17 @@ class LSLSNode(UWNode):
 		plot        -- matplotlib plot in which the node must display itself
 		"""
 		x, y, z = self.position
-		plot.scatter(x, y, z, c='k', marker='o')
+		color, mark = {
+			"UNLOCALIZED":     ("red",      'v'),
+			"LISTENING":       ("orange",   'v'),
+			"LOCALIZED":       ("blue",     '^'),
+			"CANDIDATE":       ("blue",     's'),
+			"CONFIRMING":      ("blue",     's'),
+			"ANCHOR":          ("green",    's')
+		}[self.status]
+		plot.scatter(x, y, z, c=color, marker=mark, lw=0)
+		if self.errorEstimate > 0:
+			ex, ey, ez = self.positionEstimate
+			plot.scatter(ex, ey, ez, c=color, marker='+')
+			plot.scatter(ex, ey, ez, c=(0,0,0,0.2), marker='o', lw=0, s=50*self.errorEstimate)
+			plot.plot([x,ex], [y,ey], [z,ez], 'k:')
