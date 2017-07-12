@@ -68,10 +68,15 @@ Ak = np.array( [[0, 0],
                 [0, 1],
                 [1, 0.5]] )
 
-xAxis = np.arange(5)/2. - 0.5
-yAxis = np.arange(5)/2. - 0.5
+xAxis = np.arange(61)/20. - 1
+yAxis = np.arange(61)/20. - 1
 
-nodes = np.swapaxes(np.meshgrid(xAxis, yAxis), 0, 2).reshape(-1, 2)     # numpy sorcery to obtain a list of 2D point son a grid
+nodes = np.swapaxes(np.meshgrid(xAxis, yAxis), 0, 2).reshape(-1, 2)     # numpy sorcery to obtain a list of 2D points on a grid
+
+realError = []
+estError1 = []
+estError2 = []
+estError3 = []
 
 for x, y in nodes:
 	realK, data = generateData(Ak, x, y, sigma=0.02)
@@ -81,16 +86,17 @@ for x, y in nodes:
 	K = unp.uarray(avg, stdev)
 
 	p = threeLaterate(Ak, K)
-	color = {0: 'k', 1:'b', 2:'r'}[len(p)]
-	plt.scatter(x, y, c=color, marker='s', lw=0)
+	# color = {0: 'k', 1:'b', 2:'r'}[len(p)]
+	# plt.scatter(x, y, c=color, marker='s', lw=0)
 	
 	if len(p) == 1:
 		ex, ey = unp.nominal_values(p)[0]
-		plt.scatter(ex, ey, c='b', marker='+')
-		plt.plot([x,ex], [y,ey], 'b:')
+		# plt.scatter(ex, ey, c='b', marker='+')
+		# plt.plot([x,ex], [y,ey], 'b:')
 		
 		xlist = []
 		ylist = []
+		d = []
 		
 		N = 8
 		for i in xrange(N):
@@ -101,16 +107,27 @@ for x, y in nodes:
 				xx, yy = unp.nominal_values(pp)[0]
 				xlist.append(xx)
 				ylist.append(yy)
+				d.append(sqrt( (ex-xx)**2 + (ey-yy)**2 ))
 		
-		xlist.append(xlist[0])
-		ylist.append(ylist[0])
-		
-		plt.plot(xlist, ylist, 'k:')
+		if len(xlist) > 0:
+			realError.append(sqrt( (x-ex)**2 + (y-ey)**2 ))
+			estError1.append(sum(d) / len(d))
+			estError2.append(max(d))
+			nx = sum(xlist) / len(xlist)
+			ny = sum(ylist) / len(ylist)
+			estError3.append(sqrt( (nx-ex)**2 + (ny-ey)**2 ))
+			# xlist.append(xlist[0])
+			# ylist.append(ylist[0])
+			# plt.plot(xlist, ylist, 'k:')
 		
 
-for ax, ay in Ak:
-	plt.scatter(ax, ay, c=(0,0,0,0), marker='o', s=100, lw=2, edgecolors='k')
+# for ax, ay in Ak:
+# 	plt.scatter(ax, ay, c=(0,0,0,0), marker='o', s=100, lw=2, edgecolors='k')
 
-plt.title("Estimated error areas (sigma = 0.02)")
+# plt.title("Estimated error areas (sigma = 0.02)")
+
+plt.scatter(realError, estError1, c=(0,0,1,0.5), lw=0)
+plt.scatter(realError, estError2, c=(1,0,0,0.5), lw=0)
+plt.scatter(realError, estError3, c=(0,1,0,0.5), lw=0)
 
 plt.show()
