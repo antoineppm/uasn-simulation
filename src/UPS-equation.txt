@@ -77,3 +77,75 @@ c~ = B~² - 2P0.B + P0²
 w~ = (-b ± sqrt(b²-4ac)) / (2a)
 
 P~ = A~.w~ + B~
+
+#### 2D CALCULATION ####
+
+dist1 = dist0 - k1
+dist2 = dist0 - k2
+
+let w = dist0
+
+w² = (x-x0)² + (y-y0)²
+(w-k1)² = (x-x1)² + (y-y1)²
+(w-k2)² = (x-x2)² + (y-y2)²
+
+w² = x² - 2x0.x + x0² + y² - 2y0.y + y0²
+x² + y² - w² - 2x0.x - 2y0.y + x0² + y0² = 0
+
+w² - 2k1.w + k1² = x² - 2x1.x + x1² + y² - 2y1.y + y1²
+x² + y² - w² - 2x1.x - 2y1.y + 2k1.w + x1² + y1² - k1² = 0
+x² + y² - w² - 2x2.x - 2y2.y + 2k2.w + x2² + y2² - k2² = 0
+
+2(x0-x1).x + 2(y0-y1).y + 2k1.w + (x1² + y1² - k1² - x0² - y0²) = 0
+2(x0-x2).x + 2(y0-y2).y + 2k2.w + (x2² + y2² - k2² - x0² - y0²) = 0
+
+x = Ax.w + Bx
+y = Ay.w + By
+
+2(x0-x1).Ax + 2(y0-y1).Ay + 2k1 = 0
+2(x0-x2).Ax + 2(y0-y2).Ay + 2k2 = 0
+M.A - I = 0
+
+2(x0-x1).Bx + 2(y0-y1).By + (x1² + y1² - k1² - x0² - y0²) = 0
+2(x0-x2).Bx + 2(y0-y2).By + (x2² + y2² - k2² - x0² - y0²) = 0
+M.B - J = 0
+
+## MATRIX REPRESENTATION
+
+a0 = (x0,y0)
+a1 = (x1,y1)
+a2 = (x2,y2)
+
+M = 2(a0 - a1|a2)
+
+K~ = (k1, k2) ± (sk1, sk2)
+
+I~ = -2K
+J~ = (|a1|², |a2|²) - K² - |a0|²
+
+A~ = I/M
+B~ = J/M
+
+## SOLUTION
+
+x² + y² - w² - 2x0.x - 2y0.y + x0² + y0² = 0
+Ax²w² + 2AxBx.w + Bx² + Ay²w² + 2AyBy.w + By² - w² - 2x0Ax.w - 2x0Bx - 2y0Ay.w - 2y0By + x0² + y0² = 0
+(Ax²+Ay²-1)w² + (2AxBx+2AyBy-2x0Ax-2y0Ay)w + (Bx²+By²-2x0Bx-2y0By+x0²+y0²) = 0
+
+α.w² + β.w + γ = 0
+
+α~ = A.A - 1
+β~ = 2A.B - 2A.a0
+γ~ = B.B - 2B.a0 + a0.a0
+
+δ~² = β² - 4αγ
+
+w~ = (β ± δ) / 2α
+
+P~ = A.w + B
+
+
+
+
+
+
