@@ -10,7 +10,9 @@ class LSLSNode(UWNode):
 	params = {
 		"K":                10,
 		"beaconPeriod":     1.,
-		"beaconNumber":     5
+		"beaconNumber":     5,
+		"subrange":         500,
+		"errorTolerance":   5,
 	}
 	"""All-purpose node localizing itself using the LSLS scheme"""
 	def __init__(self, id, position = (-1,-1,0), localized = False):
@@ -113,20 +115,20 @@ class LSLSNode(UWNode):
 				pass
 			elif self.status == "LOCALIZED":
 				d = distance(self.positionEstimate, (x,y,z))
-				if self.level == level + 1:
+				if self.level == level + 1 and d <= LSLSNode.params["subrange"]:
 					# LOCALIZED node received a "anchor" message of lower level: becomes candidate
 					self.status = "CANDIDATE"
 					self.master = (sender, d)
 					self.timer = time + self.candidateTimer(d)
 			elif self.status == "CANDIDATE":
 				d = distance(self.positionEstimate, (x,y,z))
-				if level == self.level + 1:
+				if level == self.level + 1 and d <= LSLSNode.params["subrange"]:
 					# CANDIDATE node received a "anchor" message of lower level: consider switching
 					t = time + self.candidateTimer(d)
 					if t < self.timer:
 						self.master = (sender, d)
 						self.timer = t
-				elif level == self.level and parent == self.master[0]:
+				elif level == self.level and parent == self.master[0] and d <= LSLSNode.params["subrange"]:
 					# CANDIDATE node received a concurrent "anchor" message: become next-level candidate, or reset to LOCALIZED if the chain is complete
 					if self.level == 3:
 						self.status = "LOCALIZED"
@@ -180,7 +182,7 @@ class LSLSNode(UWNode):
 						# import json
 						# print json.dumps(self.tdoaCalc.dataArchive, sort_keys=True, indent=4)
 						msg, x, y, z, e = self.tdoaCalc.calculatePosition(self.simParams["sos"])
-						if msg != "ok":
+						if msg != "ok" or e > LSLSNode.params["errorTolerance"]:
 							# localization failed, revert to UNLOCALIZED status
 							self.status = "UNLOCALIZED"
 							self.master = []
@@ -224,10 +226,11 @@ class LSLSNode(UWNode):
 		k = LSLSNode.params["K"]
 		r = float(self.simParams["range"])
 		v = float(self.simParams["sos"])
-		if self.level == 0:
-			return k * (r - d) / v
-		else:
-			return k * (r - 4*d + 4*d*d/r) / v
+		# if self.level == 0:
+		# 	return k * (r - d) / v
+		# else:
+		# 	return k * (r - 4*d + 4*d*d/r) / v
+		return k * (r - 2*d) / v
 	
 	def makeMaster(self):
 		"""Makes the node start the simulation as a master anchor node
@@ -244,16 +247,16 @@ class LSLSNode(UWNode):
 		"""
 		x, y, z = self.position
 		color, mark = {
-			"UNLOCALIZED":     ("red",      'v'),
-			"LISTENING":       ("orange",   'v'),
-			"LOCALIZED":       ("blue",     '^'),
-			"CANDIDATE":       ("blue",     's'),
-			"CONFIRMING":      ("blue",     's'),
-			"ANCHOR":          ("green",    's')
+			"UNLOCALIZED":     ("black",    'v'),
+			"LISTENING":       ("blue",     'v'),
+			"LOCALIZED":       ("orange",   '^'),
+			"CANDIDATE":       ("orange",   's'),
+			"CONFIRMING":      ("orange",   's'),
+			"ANCHOR":          ("red",      's')
 		}[self.status]
 		plot.scatter(x, y, z, c=color, marker=mark, lw=0)
 		if self.errorEstimate > 0:
 			ex, ey, ez = self.positionEstimate
 			plot.scatter(ex, ey, ez, c=color, marker='+')
-			plot.scatter(ex, ey, ez, c=(0,0,0,0.2), marker='o', lw=0, s=50*self.errorEstimate)
+			plot.scatter(ex, ey, ez, c=(0,0,0,0.2), marker='o', lw=0, s=20*self.errorEstimate)
 			plot.plot([x,ex], [y,ey], [z,ez], 'k:')
