@@ -60,16 +60,17 @@ def generateData(Ak, x, y, N=10, sigma=0.05):
 		r0 = range0 * gauss(1, sigma)
 		r1 = range1 * gauss(1, sigma)
 		r2 = range2 * gauss(1, sigma)
-		data.append(np.array([r0-r1, r0-r2]))
-	return K, data
+		data.append([r0-r1, r0-r2])
+	return K, np.array(data)
 
+plot = "plane"
 
 Ak = np.array( [[0, 0],
                 [0, 1],
                 [1, 0.5]] )
 
-xAxis = np.arange(61)/20. - 1
-yAxis = np.arange(61)/20. - 1
+xAxis = np.arange(7)/2. - 1
+yAxis = np.arange(7)/2. - 1
 
 nodes = np.swapaxes(np.meshgrid(xAxis, yAxis), 0, 2).reshape(-1, 2)     # numpy sorcery to obtain a list of 2D points on a grid
 
@@ -86,48 +87,57 @@ for x, y in nodes:
 	K = unp.uarray(avg, stdev)
 
 	p = threeLaterate(Ak, K)
-	# color = {0: 'k', 1:'b', 2:'r'}[len(p)]
-	# plt.scatter(x, y, c=color, marker='s', lw=0)
+	if plot == "plane":
+		color = {0: 'k', 1:'r', 2:'b'}[len(p)]
+		plt.scatter(x, y, c=color, marker='s', lw=0)
 	
 	if len(p) == 1:
 		ex, ey = unp.nominal_values(p)[0]
-		# plt.scatter(ex, ey, c='b', marker='+')
-		# plt.plot([x,ex], [y,ey], 'b:')
+		if plot == "plane":
+			plt.scatter(ex, ey, c='r', marker='+')
+			plt.plot([x,ex], [y,ey], 'r:')
 		
-		xlist = []
-		ylist = []
+		sigList = []
 		d = []
 		
-		N = 8
+		N = 4
 		for i in xrange(N):
 			a = 2 * pi * i / N
-			k = unp.uarray(avg + stdev*[cos(a),sin(a)], np.zeros(2))
+			f = 0.5
+			k = unp.uarray(avg + stdev*[cos(a),sin(a)]*f, np.zeros(2))
 			pp = threeLaterate(Ak, k)
 			if len(pp) == 1:
 				xx, yy = unp.nominal_values(pp)[0]
-				xlist.append(xx)
-				ylist.append(yy)
+				sigList.append([xx, yy])
 				d.append(sqrt( (ex-xx)**2 + (ey-yy)**2 ))
 		
-		if len(xlist) > 0:
+		if len(sigList) == N:
+			sigList = np.array(sigList)
 			realError.append(sqrt( (x-ex)**2 + (y-ey)**2 ))
 			estError1.append(sum(d) / len(d))
 			estError2.append(max(d))
-			nx = sum(xlist) / len(xlist)
-			ny = sum(ylist) / len(ylist)
+			nx, ny = ([2*ex, 2*ey] + sum(sigList)) / (N+2)
 			estError3.append(sqrt( (nx-ex)**2 + (ny-ey)**2 ))
-			# xlist.append(xlist[0])
-			# ylist.append(ylist[0])
-			# plt.plot(xlist, ylist, 'k:')
+			# nex, ney = np.sqrt(sum((coordList - [nx,ny])**2) / len(coordList))
+			# ne = np.linalg.norm([nex,ney])
+			if plot == "plane":
+				plt.scatter(nx, ny, c='k', marker='+')
+				plt.plot([x,nx], [y,ny], 'k:')
+				# plt.scatter(nx, ny, c=(0,0,0,0.2), marker='o', lw=0, s=100*ne)
+				xlist = sigList[:,0].tolist()
+				ylist = sigList[:,1].tolist()
+				xlist.append(xlist[0])
+				ylist.append(ylist[0])
+				plt.plot(xlist, ylist, 'k:')
 		
+if plot == "plane":
+	for ax, ay in Ak:
+		plt.scatter(ax, ay, c=(0,0,0,0), marker='o', s=100, lw=2, edgecolors='k')
+	plt.title("Estimated error areas (sigma = 0.02)")
 
-# for ax, ay in Ak:
-# 	plt.scatter(ax, ay, c=(0,0,0,0), marker='o', s=100, lw=2, edgecolors='k')
-
-# plt.title("Estimated error areas (sigma = 0.02)")
-
-plt.scatter(realError, estError1, c=(0,0,1,0.5), lw=0)
-plt.scatter(realError, estError2, c=(1,0,0,0.5), lw=0)
-plt.scatter(realError, estError3, c=(0,1,0,0.5), lw=0)
+if plot == "data":
+	plt.scatter(realError, estError1, c=(0,0,1,0.5), lw=0)
+	plt.scatter(realError, estError2, c=(1,0,0,0.5), lw=0)
+	plt.scatter(realError, estError3, c=(0,1,0,0.5), lw=0)
 
 plt.show()
