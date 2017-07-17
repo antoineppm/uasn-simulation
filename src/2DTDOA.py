@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from math import sqrt, pi, cos, sin
-from random import uniform, gauss
+from random import uniform, gauss, randrange
 import numpy as np
 import uncertainties.umath as um
 import uncertainties.unumpy as unp
@@ -63,14 +63,22 @@ def generateData(Ak, x, y, N=10, sigma=0.05):
 		data.append([r0-r1, r0-r2])
 	return K, np.array(data)
 
-plot = "plane"
+plot = "data"
 
 Ak = np.array( [[0, 0],
                 [0, 1],
-                [1, 0.5]] )
+                [1, 1]] )
 
-xAxis = np.arange(7)/2. - 1
-yAxis = np.arange(7)/2. - 1
+if plot == "plane":
+	for ax, ay in Ak:
+		plt.scatter(ax, ay, c=(0,0,0,0), marker='o', s=100, lw=2, edgecolors='k')
+	plt.title("")
+
+step = 10
+nb = 3 * step + 1.
+
+xAxis = np.arange(nb)/step - 1
+yAxis = xAxis
 
 nodes = np.swapaxes(np.meshgrid(xAxis, yAxis), 0, 2).reshape(-1, 2)     # numpy sorcery to obtain a list of 2D points on a grid
 
@@ -80,6 +88,49 @@ estError2 = []
 estError3 = []
 
 for x, y in nodes:
+	pos = np.array([x, y])
+	
+	sigma = 0.1
+	r = gauss(0, sigma)
+	a = uniform(0, pi)
+	realX = x + r * cos(a)
+	realY = y + r * sin(a)
+	realPos = np.array([realX, realY])
+	
+	realK, data = generateData(Ak, realX, realY, sigma=0.01)
+	avg = sum(data) / len(data)
+	stdev = np.sqrt(sum((data-avg)**2) / len(data))
+	K = unp.uarray(avg, stdev)
+	
+	p = unp.nominal_values(threeLaterate(Ak, K))
+	
+	color = {0: 'k', 1:'b', 2:'r'}[len(p)]
+	
+	if len(p) == 2:
+		d0 = np.linalg.norm(p[0] - pos)
+		d1 = np.linalg.norm(p[1] - pos)
+		if d0 < d1:
+			p = [ p[0] ]
+			color = 'g'
+		elif d1 < d0:
+			p = [ p[1] ]
+			color = 'g'
+	
+	if plot == "plane":
+		plt.scatter(realX, realY, c=color, marker='s', lw=0)
+		
+	if len(p) == 1:
+		ex, ey = p[0]
+		if plot == "plane":
+			plt.scatter(ex, ey, c=color, marker='+')
+			plt.plot([realX,ex], [realY,ey], color+':')
+		if plot == "data":
+			e = np.linalg.norm(p[0] - pos)
+			if e <= 0.3:
+				realError.append(np.linalg.norm(p[0] - realPos))
+				estError1.append(e)
+		
+	
 	realK, data = generateData(Ak, x, y, sigma=0.02)
 	avg = sum(data) / len(data)
 	stdev = np.sqrt(sum((data-avg)**2) / len(data))
@@ -116,7 +167,7 @@ for x, y in nodes:
 			realError.append(sqrt( (x-ex)**2 + (y-ey)**2 ))
 			estError1.append(sum(d) / len(d))
 			estError2.append(max(d))
-			nx, ny = ([2*ex, 2*ey] + sum(sigList)) / (N+2)
+			nx, ny = sum(sigList) / N
 			estError3.append(sqrt( (nx-ex)**2 + (ny-ey)**2 ))
 			# nex, ney = np.sqrt(sum((coordList - [nx,ny])**2) / len(coordList))
 			# ne = np.linalg.norm([nex,ney])
@@ -129,15 +180,21 @@ for x, y in nodes:
 				xlist.append(xlist[0])
 				ylist.append(ylist[0])
 				plt.plot(xlist, ylist, 'k:')
-		
-if plot == "plane":
-	for ax, ay in Ak:
-		plt.scatter(ax, ay, c=(0,0,0,0), marker='o', s=100, lw=2, edgecolors='k')
-	plt.title("Estimated error areas (sigma = 0.02)")
+
 
 if plot == "data":
 	plt.scatter(realError, estError1, c=(0,0,1,0.5), lw=0)
-	plt.scatter(realError, estError2, c=(1,0,0,0.5), lw=0)
-	plt.scatter(realError, estError3, c=(0,1,0,0.5), lw=0)
+	plt.plot([0, max(estError1)], [0, max(estError1)], 'r-')
+	# plt.scatter(realError, estError2, c=(1,0,0,0.5), lw=0)
+	# plt.scatter(realError, estError3, c=(0,1,0,0.5), lw=0)
+	n = len(realError)
+	N = 1000000
+	s = 0.
+	for i in xrange(N):
+		a = randrange(n)
+		b = randrange(n)
+		if (realError[a] < realError[b]) == (estError1[a] < estError1[b]):
+			s += 1
+	print s/N
 
 plt.show()
