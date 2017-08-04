@@ -1,0 +1,77 @@
+This is a description of a multi-stage, TDOA-based localization scheme: "Reactive Localization Scheme" (RLS)
+
+WE ARE ASSUMING THAT TRANSMISSIONS ARE NEVER LOST
+
+Node life cycle:
+UNLOCALIZED -> LOCALIZED <-> (ANCHOR)
+
+COMMON BEHAVIORS
+
+"position" message	-> register the neighboring node
+
+"beacon" message	-> register data
+			-> if last beacon: attempt to solve position
+				-> if success: register new position estimate, send POSITION
+
+UNLOCALIZED BEHAVIORS
+
+"position" message	-> attempt to find anchor set
+				-> if found: send REQUEST
+
+"beacon" message	-> if position found: LOCALIZED
+
+LOCALIZED BEHAVIOR
+
+"request" message	-> if part of the set: ANCHOR
+
+ANCHOR BEHAVIOR
+
+"beacon" message	-> check if consistent with expected predecessors
+				-> if inconsistent: LOCALIZED
+				-> if predecessor: BEACON
+					-> if max count reached: LOCALIZED
+
+After sending their initial beacon, level 0 anchors consider the corresponding level 1 anchor to be their predecessor.
+
+COMMUNICATION FORMAT
+
+transmission have the following format:
+"sender object [data]"
+The data is zero or more elements separated by whitespace
+
+MESSAGES SPECIFICATION
+
+POSITION
+data: X, Y, Z, error
+A newly localized nodes broadcasts its position
+
+REQUEST
+data: node0, node1, node2, node3
+An unlocalized nodes requests a beaconing sequence from 4 nodes
+
+CONFIRM
+data: id, node1, node2, node3
+A new level 0 anchor declares a beacon set (and eliminate possible concurrents)
+"id": name of the requesting node followed by the time of reception (truncated to the second)
+
+BEACON
+data: level, count, delay, id
+An anchor node sends a beacon for TDoA calculations
+"id": same id as the request (may be multiple)
+"level": from 0 to 3, rank of the anchor in the beacon process
+"count": number of the beaconing sequence in the series
+"delay": time from the transmission of the level 0 beacon and this particular beacon, calculated from distances
+
+COLLISION AVOIDANCE
+
+To avoid talking over each other, the broadcast of POSITION and REQUEST messages shouldn't happen as soon as they become available, but should be staggered instead. Since synchronization is not possible, a random delay should be used instead (collisions would still be possible, but unlikely).
+
+The range of the random delay should be:
+(transmission time to max range) * (expected number of nodes in range) * (safety factor)
+
+A good value for the safety factor remains to be determined (too low and collisions happen often, too high and the process is excessively long)
+
+Timers before a REQUEST message are reset after receiving a POSITION message. For this reason, they should have an appropriate minimum duration, to avoid sending a message while POSITION messages are still pending.
+
+
+
