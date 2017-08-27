@@ -50,25 +50,35 @@ class SimEnvironment:
 			z = uniform(self.minZ, 0)
 			node.position = (x,y,z)
 		
-		node.speedOfSound = self.params["sos"]
+		node.simParams = self.params
 		
 		self.nodes.append(node)
 	
-	def run(self, timeout):
+	def run(self, timeout, verbose = False, show = 0):
 		"""Runs the simulation
 		timeout     -- duration of the simulation (s)
+		verbose     -- output messages sent and received during the simulation
+		show        -- duration between showing snapshots of the simulation (set to 0 to disable)
 		"""
 		heappush(self.events, (0, "", None))    # initialize the event list with a tick
 		time = 0
-		print "start..."
+		showTime = 0
+		if verbose:
+			print "start..."
 		while time <= timeout:
 			time, message, recipient = heappop(self.events)
+			if show > 0 and time >= showTime:
+				print " showing t = " + str(time)
+				self.show()
+				showTime += show
 			if len(message) == 0:               # tick
 				tick = self.params["tick"]
 				for node in self.nodes:
 					transmission = node.tick(time)
 					if len(transmission) > 0:
 						self.broadcast(time, node.position, transmission)
+						if verbose:
+							print "%.3f" % time + " >> " + transmission
 				heappush(self.events, (time + tick, "", None))
 				# update the speed of sound
 				N = 10                  # determines the variation speed
@@ -76,8 +86,11 @@ class SimEnvironment:
 				self.speedMatrix += tick * self.params["sigma"] * np.random.randn(2,2,2)
 				self.speedMatrix /= N
 			else:
+				if verbose:
+					print "%.3f" % time + "    " + message + " >> " + recipient.name
 				recipient.receive(time, message)
-		print "...end"
+		if verbose:
+			print "...end"
 	
 	def speedOfSound(self, position):
 		x, y, z = position
@@ -110,10 +123,20 @@ class SimEnvironment:
 			node.display(ax)
 		# add invisible points to give the plot the right size
 		maxDim = max(self.maxX, self.maxY, -self.minZ)
-		ax.scatter([0, maxDim], [0, maxDim], [-maxDim, 0], marker = '.', alpha=0)
+		ax.scatter(         [(self.maxX - maxDim)/2, (self.maxX + maxDim)/2],
+		                    [(self.maxY - maxDim)/2, (self.maxY + maxDim)/2],
+		                    [(self.minZ - maxDim)/2, (self.minZ + maxDim)/2],
+		                    marker = '.', alpha=0)
+		X, Y = np.meshgrid([0, self.maxX], [0, self.maxY])
+		Z1 = np.zeros((2,2))
+		Z2 = self.minZ * np.ones((2,2))
+		ax.plot_surface(X, Y, Z1, color=(0,0.5,1,0.1), lw=0)
+		ax.plot_surface(X, Y, Z2, color=(0,0,0,0.1), lw=0)
 		ax.set_aspect('equal')
 		ax.autoscale(tight=True)
 		# display the plot
+		mng = plt.get_current_fig_manager()
+		mng.resize(*mng.window.maxsize())
 		plt.show()
 	
 def distance(position1, position2):
