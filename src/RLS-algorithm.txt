@@ -1,77 +1,130 @@
 This is a description of a multi-stage, TDOA-based localization scheme: "Reactive Localization Scheme" (RLS)
 
-WE ARE ASSUMING THAT TRANSMISSIONS ARE NEVER LOST
+(we are assuming transmissions are never lost)
 
-Node life cycle:
-UNLOCALIZED -> LOCALIZED <-> (ANCHOR)
+Nodes must do three things:
+- register the position of nearby nodes
+- calculate their own position
+- participate in localizing other nodes
 
-COMMON BEHAVIORS
+REGISTERING THE POSITION OF NEARBY NODES
 
-"position" message	-> register the neighboring node
+When a node calculate its position, it broadcasts it in a "position" message. All nodes who receive it (no matter their status) register it.
 
-"beacon" message	-> register data
-			-> if last beacon: attempt to solve position
-				-> if success: register new position estimate, send POSITION
+Typically, several nodes will be localized roughly at the same time. To avoid message collisions, these "position" messages must be staggered: see AVOIDING COLLISIONS below.
 
-UNLOCALIZED BEHAVIORS
+CALCULATING THEIR OWN POSITION
 
-"position" message	-> attempt to find anchor set
-				-> if found: send REQUEST
+Localization is done using the UPS method, repeated with different anchor sets to cover the entire network. Nodes to be localized listen to the anchors and calculate their own position based on the time differences of arrival.
 
-"beacon" message	-> if position found: LOCALIZED
+The same node can be localized several times, giving it several position estimates. Its definitive position estimate is calculated from these results.
 
-LOCALIZED BEHAVIOR
+LOCATING NEW NODES
 
-"request" message	-> if part of the set: ANCHOR
+Anchor sets are chosen by unlocalized nodes, who attempt to find good sets among their registered neighbors, then make a request.
 
-ANCHOR BEHAVIOR
+TO DO LATER: the new anchors use ToA to find a more precise location estimate using former anchors around them.
 
-"beacon" message	-> check if consistent with expected predecessors
-				-> if inconsistent: LOCALIZED
-				-> if predecessor: BEACON
-					-> if max count reached: LOCALIZED
+The anchors then do a fixed number of UPS beaconing cycles. On the first cycle they also broadcast their estimated position (which may have changed since they first calculated it, see above). The last beacon transmission prompts all nodes to estimate their position from the 
 
-After sending their initial beacon, level 0 anchors consider the corresponding level 1 anchor to be their predecessor.
+Hence, the method consists of the following steps:
+- unlocalized node request anchors among its localized neighbors
+- anchors use the UPS method to locate nodes around them
+- newly localized nodes broadcast their position
+- repeat until all nodes are localized
 
-COMMUNICATION FORMAT
+AVOIDING COLLISIONS
 
-transmission have the following format:
-"sender object [data]"
-The data is zero or more elements separated by whitespace
+Because of the nature of underwater communications, transmissions by separate nodes need to be staggered in time. In particular:
 
-MESSAGES SPECIFICATION
+1) Position broadcasts must not overlap each other. This is likely to be a problem because nodes are located in batches.
 
-POSITION
-data: X, Y, Z, error
-A newly localized nodes broadcasts its position
+2) Anchor requests must not conflict. That is, if two concurrent requests are made by different nodes in close succession, all concerned nodes must receive the first request before the second to ensure it is carried out correctly.
 
-REQUEST
-data: node0, node1, node2, node3
-An unlocalized nodes requests a beaconing sequence from 4 nodes
+3) Anchor requests should not be sent while there are still pending position broadcasts nearby. This is not a hard requirement however.
 
-CONFIRM
-data: id, node1, node2, node3
-A new level 0 anchor declares a beacon set (and eliminate possible concurrents)
-"id": name of the requesting node followed by the time of reception (truncated to the second)
+The simplest way to achieve this without extraneous communications is to assign a timeslot to each node. This only require a rough synchronization, which we assume can be achieved with low-precision clocks. The timeslots need to be long enough to account for propagation speed, message length, and clock drift.
 
-BEACON
-data: level, count, delay, id
-An anchor node sends a beacon for TDoA calculations
-"id": same id as the request (may be multiple)
-"level": from 0 to 3, rank of the anchor in the beacon process
-"count": number of the beaconing sequence in the series
-"delay": time from the transmission of the level 0 beacon and this particular beacon, calculated from distances
+This method solves 1) and 2): nowhere in the network will two nodes be transmitting at the same time.
 
-COLLISION AVOIDANCE
+To meet the requirement 3), nodes will not make request if they received a position broadcast within the last half-cycle (waiting a cycle more for all the nodes to make their broadcast).
 
-To avoid talking over each other, the broadcast of POSITION and REQUEST messages shouldn't happen as soon as they become available, but should be staggered instead. Since synchronization is not possible, a random delay should be used instead (collisions would still be possible, but unlikely).
+Anchor beaconing is not bound to these timeslots and supersede them. A node that has received a beacon recently will not transmit, even during its timeslot.
 
-The range of the random delay should be:
-(transmission time to max range) * (expected number of nodes in range) * (safety factor)
+ANCHOR SET SELECTION
 
-A good value for the safety factor remains to be determined (too low and collisions happen often, too high and the process is excessively long)
+All neigboring nodes need to be tested against each other in sets of 4 to determine the best fit (complexity O(n⁴), if done when receiving new position O(n³) each time)
 
-Timers before a REQUEST message are reset after receiving a POSITION message. For this reason, they should have an appropriate minimum duration, to avoid sending a message while POSITION messages are still pending.
+TO DO LATER
+
+NODE STATUS
+
+"unlocalized-passive"
+The node is not localized, and cannot make requests due to ongoing position broadcasts
+START	initial state
+	when receiving "position" message in certain timeslots
+	after failed localization
+END	on timeslot (-> "unlocalized-active")
+	when localized (-> "localized-new")
+
+"unlocalized-active"
+The node is not localized, but ready to make a request
+START	on timeslot (from "unlocalized-passive")
+END	when localized (-> "localized-new")
+	when receiving "position" message in certain timeslots (-> "unlocalized-passive")
+
+"localized-new"
+The node has calculated a position estimate, but has not yet broadcast it
+START	when localized (from "unlocalized-*")
+	when relocalized (from "localized-ready")
+END	when broadcasting position (-> "localized-ready")
+
+"localized-ready"
+The node has a position estimate and broadcast it, it can be used as anchor
+START	when broadcasting position (from "localized-new")
+END	on request (-> "anchor")
+	when relocalized (-> "localized-new")
+
+"anchor"
+The node is currently serving as an anchor for localizing nearby nodes
+START	on request (from "localized-ready")
+END	when beaconing ends (-> "localized-ready")
+
+Additional status:
+"listening" timer: set for 2 timeslots when a "beacon" message is received, prevents transmission.
+
+MESSAGES
+
+All message have the following format:
+sender object data
+
+sender 		the name of the node sending the message
+object		identifies the type of message
+data		additional information (there can be no data)
+
+"position" x y z e
+Position broadcast from a newly localized node
+
+"request" node0 node1 node2 node3
+Request sent by an unlocalized node to neighbor nodes
+
+"beacon" level count delay
+Message sent by anchors for the localization process.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
