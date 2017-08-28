@@ -4,6 +4,10 @@ from SimEnvironment import SimEnvironment, distance
 from UWNode import UWNode
 from TDOACalculator import TDOACalculator
 
+import numpy as np
+from heapq import heappush, heappop
+from itertools import combinations
+
 class RLSNode(UWNode):
 	"""Node class implementing the "reactive localization scheme"""
 	params = {
@@ -26,14 +30,15 @@ class RLSNode(UWNode):
 		self.slotTimer = id
 		# neighbor registration
 		self.neighbors = {}
-		# localizeation
+		# localization
 		self.listeningTimer = 0
 		self.tdoaCalc = None
 		# "unlocalized" status
-		self.bestAnchors = None
+		self.bestAnchors = []
 		# "localized" status
 		x, y, z = position
 		self.positionEstimates = [(x, y, z, 0)] if localized else []
+		self.update = False
 		# "anchor" status
 		self.anchorLevel = None
 		self.anchorMaster = None
@@ -51,20 +56,28 @@ class RLSNode(UWNode):
 				self.status = "LR"
 			delay = time - self.beaconTime
 			self.beaconTime = None
-			return self.name + " beacon " + str(self.anchorLevel) + " " + str(self.beaconCount) + " " + str(delay)
+			beacon = self.name + " beacon " + str(self.anchorLevel) + " " + str(self.beaconCount) + " " + str(delay)
+			if self.update:
+				x, y, z, e = self.positionSynthesis()
+				beacon += " " + str(x) + " " + str(y) + " " + str(z) + " " + str(e)
+				self.update = False
+			return beacon
 		
 		if time / RLSNode.params["timestep"] > self.slotTimer:
 			self.slotTimer += RLSNode.params["timecycle"]
 			print str(time) + " " + self.name + " ping " + self.status
 			
-			if self.status == "UP" and self.bestAnchors is not None:
+			if self.status == "UP" and len(self.bestAnchors) > 0:
 				self.status = "UA"
 				return ""
 			
 			if time > self.listeningTimer:
 				
 				if self.status == "UA":
-					return self.name + " request " + " ".join(self.bestAnchors)
+					s, n0, n1, n2, n3 = heappop(self.bestAnchors)
+					if len(self.bestAnchors) == 0:
+						self.status = "UP"
+					return self.name + " request " + " ".join([n0, n1, n2, n3])
 				
 				if self.status == "LN":
 					self.status = "LR"
@@ -90,7 +103,7 @@ class RLSNode(UWNode):
 			x = float(data[0])
 			y = float(data[1])
 			z = float(data[2])
-			position = (x, y, z)
+			position = np.array([x, y, z])
 			error = float(data[3])
 			# if node is unlocalized, attempt to find a better anchor set
 			if self.status in ["UP", "UA"]:
@@ -103,11 +116,14 @@ class RLSNode(UWNode):
 		
 		if subject == "request":
 			if self.status == "LR" and self.name in data:
-				self.status = "A"
 				i = data.index(self.name)
+				master = data[i-1 % 4]
+				if master not in self.neighbors:
+					return
+				self.status = "A"
 				self.anchorLevel = i
-				self.anchorMaster = data[i-1 % 4]
-				p, e = self.neighbors[self.anchorMaster]
+				self.anchorMaster = master
+				p, e = self.neighbors[master]
 				d = distance(self.position, p)
 				self.masterDelay = d / self.simParams["sos"]
 				if i == 0:
@@ -118,6 +134,12 @@ class RLSNode(UWNode):
 			level = int(data[0])
 			count = int(data[1])
 			delay = float(data[2])
+			if len(data) > 3:
+				x = float(data[3])
+				y = float(data[4])
+				z = float(data[5])
+				e = float(data[6])
+				self.neighbors[sender] = (np.array([x,y,z]), e)
 			if self.status == "A":
 				if sender == self.anchorMaster:
 					if self.anchorLevel == 0:
@@ -152,11 +174,13 @@ class RLSNode(UWNode):
 					msg, x, y, z, e = self.tdoaCalc.calculatePosition(self.simParams["sos"])
 					self.tdoaCalc = None
 					print self.name + " calculating: " + msg
+					print x, y, z, e
 					if msg == "ok" and e < RLSNode.params["threshold"]:
 						self.positionEstimates.append((x,y,z, e))
-						self.status = "LN"
-						for p in self.positionEstimates:
-							print p
+						if self.status in ["UP", "UA"]:
+							self.status = "LN"
+						if self.status == "LR":
+							self.update = True
 	
 	def display(self, plot):
 		"""Displays a representation of the node in a 3D plot
@@ -178,13 +202,28 @@ class RLSNode(UWNode):
 			plot.plot([x,ex], [y,ey], [z,ez], 'k:')
 	
 	def findAnchors(self, newNode, position, error):
-		# dumb solution: select the last four neighbors
-		nb = self.neighbors.keys()
-		while newNode in nb:
-			nb.remove(newNode)
-		if len(nb) >= 3:
-			self.bestAnchors = nb[-3:]
-			self.bestAnchors.append(newNode)
+		l = len(self.neighbors)
+		if l >= 3:
+			for n1, n2, n3 in combinations(self.neighbors.keys(), 3):
+				p1, e1 = self.neighbors[n1]
+				p2, e2 = self.neighbors[n2]
+				p3, e3 = self.neighbors[n3]
+				s = self.rateAnchors([position, p1, p2, p3])
+				if s > 0:
+					heappush(self.bestAnchors, (-s, newNode, n1, n2, n3))
+			# print self.name + " " + str(self.bestAnchors) + " " + str(score)
+	
+	def rateAnchors(self, anchorSet):
+		# eliminate sets where nodes are too distant
+		for n1 in anchorSet:
+			for n2 in anchorSet:
+				if np.linalg.norm(n1-n2) > self.simParams["range"]:
+					return 0
+		# calculate the score
+		a = anchorSet[1] - anchorSet[0]
+		b = anchorSet[2] - anchorSet[0]
+		c = anchorSet[3] - anchorSet[0]
+		return abs(np.dot(a, np.cross(b, c)))
 	
 	def positionSynthesis(self):
 		# takes the estimate with the lowest error
