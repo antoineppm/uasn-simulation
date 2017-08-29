@@ -33,6 +33,7 @@ class RLSNode(UWNode):
 		# localization
 		self.listeningTimer = 0
 		self.tdoaCalc = None
+		self.anchorErrors = [0, 0, 0, 0]
 		# "unlocalized" status
 		self.bestAnchors = []
 		# "localized" status
@@ -75,6 +76,7 @@ class RLSNode(UWNode):
 				
 				if self.status == "UA":
 					s, n0, n1, n2, n3 = heappop(self.bestAnchors)
+					print "score:", s
 					if len(self.bestAnchors) == 0:
 						self.status = "UP"
 					return self.name + " request " + " ".join([n0, n1, n2, n3])
@@ -83,12 +85,13 @@ class RLSNode(UWNode):
 					self.status = "LR"
 					x, y, z, e = self.positionSynthesis()
 					return self.name + " position " + str(x) + " " + str(y) + " " + str(z) + " " + str(e)
+				
+				if self.status == "A":
+					# anchor is orphaned
+					self.status = "LR"
 		
 		return ""
-				
-			
-					
-	
+
 	def receive(self, time, message):
 		"""Function called when a message broadcast by another node arrives at the node
 		time        -- date of reception (s)
@@ -141,6 +144,7 @@ class RLSNode(UWNode):
 				e = float(data[6])
 				self.neighbors[sender] = (np.array([x,y,z]), e)
 			if self.status == "A":
+				self.listeningTimer = time + 4 * RLSNode.params["timestep"]
 				if sender == self.anchorMaster:
 					if self.anchorLevel == 0:
 						self.beaconCount += 1
@@ -162,6 +166,7 @@ class RLSNode(UWNode):
 					position, error = self.neighbors[sender]
 					x, y, z = position
 					self.tdoaCalc.addAnchor(level, x, y, z)
+					self.anchorErrors[level] = error
 				else:
 					for a in self.tdoaCalc.anchorPositions:
 						if a is None:
@@ -176,7 +181,8 @@ class RLSNode(UWNode):
 					print self.name + " calculating: " + msg
 					print x, y, z, e
 					if msg == "ok" and e < RLSNode.params["threshold"]:
-						self.positionEstimates.append((x,y,z, e))
+						error = 1 + max(self.anchorErrors)
+						self.positionEstimates.append((x,y,z, error))
 						if self.status in ["UP", "UA"]:
 							self.status = "LN"
 						if self.status == "LR":
@@ -208,22 +214,24 @@ class RLSNode(UWNode):
 				p1, e1 = self.neighbors[n1]
 				p2, e2 = self.neighbors[n2]
 				p3, e3 = self.neighbors[n3]
-				s = self.rateAnchors([position, p1, p2, p3])
+				s = self.rateAnchors([position, p1, p2, p3], [error, e1, e2, e3])
 				if s > 0:
 					heappush(self.bestAnchors, (-s, newNode, n1, n2, n3))
 			# print self.name + " " + str(self.bestAnchors) + " " + str(score)
 	
-	def rateAnchors(self, anchorSet):
+	def rateAnchors(self, positions, errors):
 		# eliminate sets where nodes are too distant
-		for n1 in anchorSet:
-			for n2 in anchorSet:
+		for n1 in positions:
+			for n2 in positions:
 				if np.linalg.norm(n1-n2) > self.simParams["range"]:
 					return 0
 		# calculate the score
-		a = anchorSet[1] - anchorSet[0]
-		b = anchorSet[2] - anchorSet[0]
-		c = anchorSet[3] - anchorSet[0]
-		return abs(np.dot(a, np.cross(b, c)))
+		a = positions[1] - positions[0]
+		b = positions[2] - positions[0]
+		c = positions[3] - positions[0]
+		shapeRating = abs(np.dot(a, np.cross(b, c)))
+		errorRating = 1 + sum(errors)
+		return shapeRating / errorRating
 	
 	def positionSynthesis(self):
 		# takes the estimate with the lowest error
