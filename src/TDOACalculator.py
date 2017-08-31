@@ -76,9 +76,8 @@ class TDOACalculator:
 		e = np.linalg.norm(unp.std_devs(P))
 		return ("ok", x, y, z, e)
 	
-	def calculatePosition(self, velocity):
+	def calculatePosition(self-):
 		"""Calculates a position from the stored data
-		velocity    -- speed of transmission of the messages (m/s)
 		Returns a string ("ok" or error message) and four floats (calculated X,Y,Z coordinates plus error estimate if successful, 0 otherwise)
 		"""
 		# statistical measurements and k coefficients
@@ -107,12 +106,11 @@ class TDOACalculator:
 				return ("not enough data", 0, 0, 0, 0)
 			avg[i] = sum(kl) / l
 			stdev[i] = sqrt(sum([ (k-avg[i])**2 for k in kl ]) / l)
-		K = velocity * unp.uarray(avg, stdev)
+		K = SND_SPEED * unp.uarray(avg, stdev)
 		return self.fourLaterate(K)
 	
-	def calculatePositionVerbose(self, velocity):
+	def calculatePositionVerbose(self):
 		"""Calculates a position from the stored data
-		velocity    -- speed of transmission of the messages (m/s)
 		Returns a dictionary of various data, position estimates and error estimates
 		"""
 		fullK = [ [], [], [] ]
@@ -155,7 +153,7 @@ class TDOACalculator:
 				return None
 			avg[i] = sum(kl) / l
 			stdev[i] = sqrt(sum([ (k-avg[i])**2 for k in kl ]) / l)
-		K = velocity * unp.uarray(avg, stdev)
+		K = SND_SPEED * unp.uarray(avg, stdev)
 		msg, x, y, z, e = self.fourLaterate(K)
 		
 		fullKavg = avg
@@ -173,7 +171,7 @@ class TDOACalculator:
 				return None
 			avg[i] = sum(kl) / l
 			stdev[i] = sqrt(sum([ (k-avg[i])**2 for k in kl ]) / l)
-		K = velocity * unp.uarray(avg, stdev)
+		K = SND_SPEED * unp.uarray(avg, stdev)
 		msg, x, y, z, e = self.fourLaterate(K)
 		
 		if msg != "ok":
@@ -191,7 +189,7 @@ class TDOACalculator:
 		n = 0
 		
 		for i in xrange(len(cleanK[0])):
-			K = velocity * np.array([ kl[i] for kl in cleanK ])
+			K = SND_SPEED * np.array([ kl[i] for kl in cleanK ])
 			msg, x, y, z, e = self.fourLaterate(K)
 			if e > 1e-8:
 				print e

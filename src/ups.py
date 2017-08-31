@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from parameters import *
 from SimEnvironment import SimEnvironment, distance
 from UWNode import UWNode
 from TDOACalculator import TDOACalculator
@@ -48,7 +49,7 @@ class AnchorNode(UWNode):
 			x, y, z, delay = [ float(i) for i in message.split()[2:6] ]
 			if self.distanceToPrevious is None:
 				self.distanceToPrevious = distance(self.position, (x,y,z))
-			self.timeOrigin = time - (self.distanceToPrevious / self.simParams["sos"]) - delay
+			self.timeOrigin = time - (self.distanceToPrevious / SND_SPEED) - delay
 	
 	def display(self, plot):
 		"""Displays a representation of the node in a 3D plot
@@ -59,11 +60,9 @@ class AnchorNode(UWNode):
 
 class MasterAnchorNode(AnchorNode):
 	"""Anchor node that initiates the beaconing sequences"""
-	def __init__(self, position, beaconPeriod, beaconNumber):
+	def __init__(self, position):
 		AnchorNode.__init__(self, 0, position)
-		self.beaconPeriod = beaconPeriod
 		self.nextBeaconTime = 0
-		self.beaconNumber = beaconNumber
 		self.beaconCount = 0
 	
 	def tick(self, time):
@@ -72,10 +71,10 @@ class MasterAnchorNode(AnchorNode):
 		If the anchor node is next in line to beacon, sends out a message: position + beaconing delay
 		"""
 		message = ""
-		if time >= self.nextBeaconTime and self.beaconCount < self.beaconNumber:
+		if time >= self.nextBeaconTime and self.beaconCount < UPS_NUMBER:
 			self.timeOrigin = time      # we set the origin as the time of beaconing of the master
 			message = AnchorNode.tick(self, time)
-			self.nextBeaconTime += self.beaconPeriod
+			self.nextBeaconTime += UPS_PERIOD
 			self.beaconCount += 1
 		return message
 
@@ -99,7 +98,7 @@ class SensorNode(UWNode):
 		Never transmits
 		"""
 		if time >= self.timeout:
-			error, x, y, z, e = self.tdoaCalc.calculatePosition(self.simParams["sos"])
+			error, x, y, z, e = self.tdoaCalc.calculatePosition()
 			if error != "ok":
 				print self.name + " could not find its position: " + error
 				print "       actual position: " + "%.3f, %.3f, %.3f" % self.position
