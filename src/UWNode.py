@@ -10,7 +10,6 @@ class UWNode:
 		"""
 		self.name = name
 		self.position = position
-		self.simParams = {}     # to be modified by the simulation environment
 	
 	def tick(self, time):
 		"""Function called every tick, lets the node perform operations

@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from parameters import *
+
 from heapq import heappush, heappop
 from random import uniform, gauss
 from math import sqrt
@@ -9,29 +11,20 @@ from mpl_toolkits.mplot3d import Axes3D
 
 class SimEnvironment:
 	"""Manages a set of nodes and the communications between them"""
-	def __init__(self, size, params = {}):
+	def __init__(self, size):
 		"""Initialize the simulation environment
 		size        -- dimensions (dimX, dimY, dimZ) of the simulation space
 		            the simulation space is defined by the following ranges:
 		                0 < x < dimX
 		                0 < y < dimY
 		            -dimZ < z < 0
-		params      -- set of parameters, overrides the default parameters (default {})
 		"""
 		dimX, dimY, dimZ = size
 		self.maxX = dimX
 		self.maxY = dimY
 		self.minZ = -dimZ
-		self.params = {                 # default set of parameters
-		    "sos":          1500,       # speed of sound in water (m/s)
-		    "range":        1000,       # maximum range a signal can reach (m)
-		    "reliability":  1,          # probability of a signal reaching its destination (0 to 1)
-		    "sigma":        0.02,       # standard deviation of the initial speed of sound randomization
-		    "tick":         0.1         # duration between two activations of the nodes
-		}
-		self.params.update(params)      # let user-provided parameters override default parameters
 		
-		self.speedMatrix = self.params["tick"] * self.params["sigma"] * np.random.randn(2,2,2)        # create a 2x2x2 array of normal (1,s) random values
+		self.speedMatrix = SIM_TICK * SND_VAR * np.random.randn(2,2,2)        # create a 2x2x2 array of normal (1,s) random values
 		
 		self.nodes = []
 		self.events = []                # managed with heapq
@@ -49,8 +42,6 @@ class SimEnvironment:
 			y = uniform(0, self.maxY)
 			z = uniform(self.minZ, 0)
 			node.position = (x,y,z)
-		
-		node.simParams = self.params
 		
 		self.nodes.append(node)
 	
@@ -72,7 +63,7 @@ class SimEnvironment:
 				self.show()
 				showTime += show
 			if len(message) == 0:               # tick
-				tick = self.params["tick"]
+				tick = SIM_TICK
 				for node in self.nodes:
 					transmission = node.tick(time)
 					if len(transmission) > 0:
@@ -83,7 +74,7 @@ class SimEnvironment:
 				# update the speed of sound
 				N = 10                  # determines the variation speed
 				self.speedMatrix *= (N - tick)
-				self.speedMatrix += tick * self.params["sigma"] * np.random.randn(2,2,2)
+				self.speedMatrix += tick * SND_VAR * np.random.randn(2,2,2)
 				self.speedMatrix /= N
 			else:
 				if verbose:
@@ -99,7 +90,7 @@ class SimEnvironment:
 		v = np.average(v, axis=0, weights=(x, self.maxX-x))
 		v = np.average(v, axis=0, weights=(y, self.maxY-y))
 		v = np.average(v, axis=0, weights=(z, self.minZ-z))
-		return v * self.params["sos"]
+		return v * SND_SPEED
 	
 	def broadcast(self, time, position, message):
 		"""Schedules a message to be recieved by all nodes in range
@@ -109,7 +100,7 @@ class SimEnvironment:
 		"""
 		for node in self.nodes:
 			d = distance(node.position, position)
-			if d > 0 and d <= self.params["range"] and uniform(0,1) < self.params["reliability"]:
+			if d > 0 and d <= SIM_RANGE and uniform(0,1) > SIM_LOSS:
 				toa = time + d / self.speedOfSound(node.position)
 				heappush(self.events, (toa, message, node))
 	
