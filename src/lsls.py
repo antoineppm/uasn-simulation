@@ -7,13 +7,6 @@ from TDOACalculator import TDOACalculator
 import numpy as np
 
 class LSLSNode(UWNode):
-	params = {
-		"K":                10,
-		"beaconPeriod":     1.,
-		"beaconNumber":     5,
-		"subrange":         500,
-		"errorTolerance":   5,
-	}
 	"""All-purpose node localizing itself using the LSLS scheme"""
 	def __init__(self, id, position = (-1,-1,0), localized = False):
 		"""Create a node
@@ -60,7 +53,7 @@ class LSLSNode(UWNode):
 				data = [self.level, self.candidateTimer(d), parent]
 			elif self.status == "CONFIRMING":
 				self.status = "ANCHOR"
-				self.timer = float('inf') if self.level > 0 else time + (3 * LSLSNode.params["K"] + 10) * self.standardTimer()
+				self.timer = float('inf') if self.level > 0 else time + (3 * LSLS_WAITFACTOR + 10) * self.standardTimer()
 				subject = "anchor"
 				parent, d = self.master
 				x, y, z = self.positionEstimate
@@ -68,13 +61,13 @@ class LSLSNode(UWNode):
 			elif self.status == "ANCHOR":
 				subject = "beacon"
 				data = [self.beaconCount, self.level, time - self.timer]
-				if self.beaconCount == LSLSNode.params["beaconNumber"] - 1:
+				if self.beaconCount == UPS_NUMBER - 1:
 					self.status = "LOCALIZED"
 					self.level = 1
 					self.timer = float('inf')
 				elif self.level == 0:
 					self.beaconCount += 1
-					self.timer += LSLSNode.params["beaconPeriod"]
+					self.timer += UPS_PERIOD
 				else:
 					self.timer = float('inf')
 		if len(subject) > 0:
@@ -115,20 +108,20 @@ class LSLSNode(UWNode):
 				pass
 			elif self.status == "LOCALIZED":
 				d = distance(self.positionEstimate, (x,y,z))
-				if self.level == level + 1 and d <= LSLSNode.params["subrange"]:
+				if self.level == level + 1 and d <= LSLS_SUBRANGE:
 					# LOCALIZED node received a "anchor" message of lower level: becomes candidate
 					self.status = "CANDIDATE"
 					self.master = (sender, d)
 					self.timer = time + self.candidateTimer(d)
 			elif self.status == "CANDIDATE":
 				d = distance(self.positionEstimate, (x,y,z))
-				if level == self.level + 1 and d <= LSLSNode.params["subrange"]:
+				if level == self.level + 1 and d <= LSLS_SUBRANGE:
 					# CANDIDATE node received a "anchor" message of lower level: consider switching
 					t = time + self.candidateTimer(d)
 					if t < self.timer:
 						self.master = (sender, d)
 						self.timer = t
-				elif level == self.level and parent == self.master[0] and d <= LSLSNode.params["subrange"]:
+				elif level == self.level and parent == self.master[0] and d <= LSLS_SUBRANGE:
 					# CANDIDATE node received a concurrent "anchor" message: become next-level candidate, or reset to LOCALIZED if the chain is complete
 					if self.level == 3:
 						self.status = "LOCALIZED"
@@ -177,12 +170,12 @@ class LSLSNode(UWNode):
 			elif self.status == "LISTENING":
 				if self.master[level][0] == sender:
 					self.tdoaCalc.addDataPoint(count, level, time, delay)
-					if level == 3 and count == LSLSNode.params["beaconNumber"] - 1:
+					if level == 3 and count == UPS_NUMBER - 1:
 						# beacon sequence finished, LISTENING node tries to calculate its position
 						# import json
 						# print json.dumps(self.tdoaCalc.dataArchive, sort_keys=True, indent=4)
-						msg, x, y, z, e = self.tdoaCalc.calculatePosition(self.simParams["sos"])
-						if msg != "ok" or e > LSLSNode.params["errorTolerance"]:
+						msg, x, y, z, e = self.tdoaCalc.calculatePosition(SND_SPEED)
+						if msg != "ok" or e > LSLS_TOLERANCE:
 							# localization failed, revert to UNLOCALIZED status
 							self.status = "UNLOCALIZED"
 							self.master = []
@@ -206,7 +199,7 @@ class LSLSNode(UWNode):
 			elif self.status == "ANCHOR":
 				parent, d = self.master
 				if parent == sender and self.level == level + 1:
-					self.timer = time - d/self.simParams["sos"] - delay         # trigger a beacon at next tick, and indicate the time origin to use
+					self.timer = time - d/SND_SPEED - delay         # trigger a beacon at next tick, and indicate the time origin to use
 					self.beaconCount = count
 	
 	def standardTimer(self):
@@ -214,8 +207,8 @@ class LSLSNode(UWNode):
 		Multiples of this are used as timers for various stages
 		Returns: time (s)
 		"""
-		r = float(self.simParams["range"])
-		v = float(self.simParams["sos"])
+		r = float(SIM_RANGE)
+		v = float(SND_SPEED)
 		return r/v
 	
 	def candidateTimer(self, d):
@@ -223,9 +216,9 @@ class LSLSNode(UWNode):
 		d           -- distance the parent anchor
 		Returns: time (s)
 		"""
-		k = LSLSNode.params["K"]
-		r = float(self.simParams["range"])
-		v = float(self.simParams["sos"])
+		k = LSLS_WAITFACTOR
+		r = float(SIM_RANGE)
+		v = float(SND_SPEED)
 		# if self.level == 0:
 		# 	return k * (r - d) / v
 		# else:

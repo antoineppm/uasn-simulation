@@ -14,3 +14,8 @@ SIM_TICK            = 0.1       # duration between two activations of the nodes 
 # UPS localization parameters
 UPS_PERIOD          = 1         # duration between two successive beacon cycles (s)
 UPS_NUMBER          = 10        # number of localization cycles
+
+# LSLS parameters
+LSLS_WAITFACTOR     = 10        # "K" factor for waiting periods
+LSLS_SUBRANGE       = 500       # secondary range for anchor selection
+LSLS_TOLERANCE      = 5         # maximum error estimate to consider a node localized
