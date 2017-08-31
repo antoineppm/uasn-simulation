@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from parameters import *
 from SimEnvironment import SimEnvironment, distance
 from UWNode import UWNode
 from TDOACalculator import TDOACalculator
