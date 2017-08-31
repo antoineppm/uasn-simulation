@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from parameters import *
 from SimEnvironment import SimEnvironment, distance
 from UWNode import UWNode
 from TDOACalculator import TDOACalculator
@@ -10,12 +11,7 @@ from itertools import combinations
 
 class RLSNode(UWNode):
 	"""Node class implementing the "reactive localization scheme"""
-	params = {
-		"timestep":         1,
-		"timecycle":        10,
-		"beaconNb":         10,
-		"threshold":        10,
-	}
+	slotNumber = 0
 	def __init__(self, id, position = (-1,-1,0), localized = False):
 		"""Create a node
 		id          -- unique number identifying the node and its time slot
@@ -28,6 +24,7 @@ class RLSNode(UWNode):
 		self.message = None
 		self.status = "LN" if localized else "UP"
 		self.slotTimer = id
+		RLSNode.slotNumber = max(id+1, RLS.slotNumber)
 		# neighbor registration
 		self.neighbors = {}
 		# localization
@@ -53,7 +50,7 @@ class RLSNode(UWNode):
 		Returns a string to be broadcast (if the string is empty, it is not broadcast)
 		"""
 		if self.status == "A" and self.beaconTime is not None:
-			if self.beaconCount == RLSNode.params["beaconNb"]:
+			if self.beaconCount == UPS_NUMBER:
 				self.status = "LR"
 			delay = time - self.beaconTime
 			self.beaconTime = None
@@ -64,8 +61,8 @@ class RLSNode(UWNode):
 				self.update = False
 			return beacon
 		
-		if time / RLSNode.params["timestep"] > self.slotTimer:
-			self.slotTimer += RLSNode.params["timecycle"]
+		if time / RLS_TIMESLOT > self.slotTimer:
+			self.slotTimer += RLSNode.slotNumber
 			print str(time) + " " + self.name + " ping " + self.status
 			
 			if self.status == "UP" and len(self.bestAnchors) > 0:
@@ -114,7 +111,7 @@ class RLSNode(UWNode):
 			# add to the list of neighbor
 			self.neighbors[sender] = (position, error)
 			# revert to "unlocalized-passive" if needed
-			if self.status == "UA" and time/RLSNode.params["timestep"] > self.slotTimer - RLSNode.params["timecycle"]/2:
+			if self.status == "UA" and time/RLS_TIMESLOT > self.slotTimer - RLSNode.slotNumber/2:
 				self.status = "UP"
 		
 		if subject == "request":
@@ -128,7 +125,7 @@ class RLSNode(UWNode):
 				self.anchorMaster = master
 				p, e = self.neighbors[master]
 				d = distance(self.position, p)
-				self.masterDelay = d / self.simParams["sos"]
+				self.masterDelay = d / SND_SPEED
 				if i == 0:
 					self.beaconTime = time
 					self.beaconCount = 1
@@ -144,7 +141,7 @@ class RLSNode(UWNode):
 				e = float(data[6])
 				self.neighbors[sender] = (np.array([x,y,z]), e)
 			if self.status == "A":
-				self.listeningTimer = time + 4 * RLSNode.params["timestep"]
+				self.listeningTimer = time + 4 * RLS_TIMESLOT
 				if sender == self.anchorMaster:
 					if self.anchorLevel == 0:
 						self.beaconCount += 1
@@ -155,7 +152,7 @@ class RLSNode(UWNode):
 			else:
 				if self.status == "UA":
 					self.status = "UP"
-				self.listeningTimer = time + 2 * RLSNode.params["timestep"]
+				self.listeningTimer = time + 2 * RLS_TIMESLOT
 				# first beacon: new calculator
 				if count == 1 and level == 0:
 					self.tdoaCalc = TDOACalculator()
@@ -175,12 +172,12 @@ class RLSNode(UWNode):
 				# all cycles: register data
 				self.tdoaCalc.addDataPoint(count, level, time, delay)
 				# final beacon: calculate position
-				if count == RLSNode.params["beaconNb"] and level == 3:
-					msg, x, y, z, e = self.tdoaCalc.calculatePosition(self.simParams["sos"])
+				if count == UPS_NUMBER and level == 3:
+					msg, x, y, z, e = self.tdoaCalc.calculatePosition(SND_SPEED)
 					self.tdoaCalc = None
 					print self.name + " calculating: " + msg
 					print x, y, z, e
-					if msg == "ok" and e < RLSNode.params["threshold"]:
+					if msg == "ok" and e < RLS_TOLERANCE:
 						error = 1 + max(self.anchorErrors)
 						self.positionEstimates.append((x,y,z, error))
 						if self.status in ["UP", "UA"]:
@@ -223,7 +220,7 @@ class RLSNode(UWNode):
 		# eliminate sets where nodes are too distant
 		for n1 in positions:
 			for n2 in positions:
-				if np.linalg.norm(n1-n2) > self.simParams["range"]:
+				if np.linalg.norm(n1-n2) > SIM_RANGE:
 					return 0
 		# calculate the score
 		a = positions[1] - positions[0]

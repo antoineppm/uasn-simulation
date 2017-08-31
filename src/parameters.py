@@ -19,3 +19,7 @@ UPS_NUMBER          = 10        # number of localization cycles
 LSLS_WAITFACTOR     = 10        # "K" factor for waiting periods
 LSLS_SUBRANGE       = 500       # secondary range for anchor selection
 LSLS_TOLERANCE      = 5         # maximum error estimate to consider a node localized
+
+# RLS parameters
+RLS_TIMESLOT        = 2         # length of a node's assigned time slot (s)
+RLS_TOLERANCE       = 5         # maximum error for a position estimate to be taken into account
