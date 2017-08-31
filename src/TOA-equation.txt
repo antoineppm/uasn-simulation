@@ -1,0 +1,25 @@
+Unknown:
+X = (x,y,z) the position of the node to be located
+
+Input:
+Xi = (xi,yi,zi) 1 <= i <= N the position of the anchors
+D = [ di ] the distances between the node and each of the anchors
+X0 the initial assumed value of X, to be refined incrementally
+
+Definitions:
+
+ri	= di - |X-Xi| the residuals
+	= di - sqrt( (x-xi)² + (y-yi)² + (z-zi)² )
+
+R	= [ ri ]
+
+∂ri/∂w	= (wi-w) / |X-Xi|	w = x,y,z
+
+J	= [ [ ∂ri/∂x, ∂ri/∂y, ∂ri/∂z ] ] the Jacobian matrix
+
+Refinement process:
+
+X <- X - (J'J)⁻¹J'R
+
+The process stops after a given number of iterations, or when the difference is smaller than a threshold
+
