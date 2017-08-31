@@ -24,7 +24,7 @@ class RLSNode(UWNode):
 		self.message = None
 		self.status = "LN" if localized else "UP"
 		self.slotTimer = id
-		RLSNode.slotNumber = max(id+1, RLS.slotNumber)
+		RLSNode.slotNumber = max(id+1, RLSNode.slotNumber)
 		# neighbor registration
 		self.neighbors = {}
 		# localization
@@ -173,7 +173,7 @@ class RLSNode(UWNode):
 				self.tdoaCalc.addDataPoint(count, level, time, delay)
 				# final beacon: calculate position
 				if count == UPS_NUMBER and level == 3:
-					msg, x, y, z, e = self.tdoaCalc.calculatePosition(SND_SPEED)
+					msg, x, y, z, e = self.tdoaCalc.calculatePosition()
 					self.tdoaCalc = None
 					print self.name + " calculating: " + msg
 					print x, y, z, e

@@ -5,6 +5,7 @@ import numpy as np
 import uncertainties.umath as um
 import uncertainties.unumpy as unp
 
+from parameters import *
 from SimEnvironment import distance
 
 class TDOACalculator:
@@ -76,7 +77,7 @@ class TDOACalculator:
 		e = np.linalg.norm(unp.std_devs(P))
 		return ("ok", x, y, z, e)
 	
-	def calculatePosition(self-):
+	def calculatePosition(self):
 		"""Calculates a position from the stored data
 		Returns a string ("ok" or error message) and four floats (calculated X,Y,Z coordinates plus error estimate if successful, 0 otherwise)
 		"""

@@ -175,7 +175,7 @@ class LSLSNode(UWNode):
 						# beacon sequence finished, LISTENING node tries to calculate its position
 						# import json
 						# print json.dumps(self.tdoaCalc.dataArchive, sort_keys=True, indent=4)
-						msg, x, y, z, e = self.tdoaCalc.calculatePosition(SND_SPEED)
+						msg, x, y, z, e = self.tdoaCalc.calculatePosition()
 						if msg != "ok" or e > LSLS_TOLERANCE:
 							# localization failed, revert to UNLOCALIZED status
 							self.status = "UNLOCALIZED"
