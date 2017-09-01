@@ -153,13 +153,13 @@ class TDOACalculator(PositionCalculator):
 		# selecting valid results
 		positions = []
 		for r in roots:
-			# eliminate negative distances
+			# eliminate negative solutions
 			if r < 0:
 				continue
 			# calculate the positon
 			pos = A*r + B
 			# check it's at a valid distance from each anchor
-			if max([ np.linalg.norm(pos-a) for a in P ]) <= SIM_RANGE:
+			if max([ np.linalg.norm(pos-a) for a in P ]) <= SIM_RANGE * 1.1:
 				positions.append(pos)
 		# return the result
 		if len(positions) == 0:
