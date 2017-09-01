@@ -23,3 +23,8 @@ LSLS_TOLERANCE      = 5         # maximum error estimate to consider a node loca
 # RLS parameters
 RLS_TIMESLOT        = 2         # length of a node's assigned time slot (s)
 RLS_TOLERANCE       = 5         # maximum error for a position estimate to be taken into account
+
+
+# TOA calculation parameters
+TOA_ITERMAX         = 10        # maximum number of iterations of the Gauss-Newton method
+TOA_THRESHOLD       = 0.01      # variation threshold to stop the Gauss-Newton method

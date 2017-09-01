@@ -106,6 +106,11 @@ class TDOACalculator(PositionCalculator):
 		self.anchorMax = 4
 	
 	def compile(self, dataSeries):
+		"""Compiles a data series into a form usable by the calculation function
+		dataSeries  -- dictionary {anchor: data point}
+		               data points are pairs (time of arrival, transmission delay)
+		Returns an array of either numbers, or None when a value cannot be calculated
+		"""
 		distDiff = [ None for i in xrange(3) ]
 		if self.anchors[0] in dataSeries:
 			t0, dt0 = dataSeries[self.anchors[0]]
@@ -164,3 +169,56 @@ class TDOACalculator(PositionCalculator):
 		else:
 			return "multiple results", np.zeros(3)
 		
+
+class TOACalculator(PositionCalculator):
+	"""Position calculation based on the time of arrival
+	"""
+	def __init__(self, position):
+		"""Creates a new calculator with empty data set
+		position    -- prior position estimate
+		"""
+		PositionCalculator.__init__(self)
+		self.anchorMin = 3
+		self.anchorMax = -1
+		self.priorPosition = np.array(position)
+	
+	
+	def compile(self, dataSeries):
+		"""Compiles a data series into a form usable by the calculation function
+		dataSeries  -- dictionary {anchor: data point}
+		               data points are pairs (time of flight, retransmission delay)
+		Returns an array of either numbers, or None when a value cannot be calculated
+		"""
+		distances = [ None for i in xrange(len(self.anchors)) ]
+		for i, a in enumerate(self.anchors):
+			if a in dataSeries:
+				tof, dt = dataSeries[a]
+				distances[i] = SND_SPEED * (tof - dt) / 2
+		return distances
+	
+	def calculate(self, data):
+		"""Calculates a position estimate from compiled data, using the Gauss-Newton method
+		Must be implemented by the child classes
+		data        -- compiled data
+		Returns an error message ("ok" if successful) and the estimated position as a numpy array
+		"""
+		X = self.priorPosition
+		N = len(data)
+		
+		for k in xrange(TOA_ITERMAX):
+			R = np.zeros(N)     # residuals matrix
+			J = np.zeros((N,3)) # Jacobian matrix
+			
+			for i, a in enumerate(self.anchors):
+				dist = np.linalg.norm(self.positions[a] - X)
+				R[i] = data[i] - dist
+				J[i] = (self.positions[a] - X) / dist
+			
+			diff = np.linalg.inv(J.T.dot(J)).dot(J.T).dot(R)    # differential of the Gauss-Newton method
+			var = np.linalg.norm(diff)
+			X = X - diff
+			
+			if var < TOA_THRESHOLD:
+				return "ok", X
+		
+		return "reached iteration maximum", X
