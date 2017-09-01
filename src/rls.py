@@ -3,7 +3,7 @@
 from parameters import *
 from SimEnvironment import SimEnvironment, distance
 from UWNode import UWNode
-from TDOACalculator import TDOACalculator
+from PositionCalculator import TDOACalculator
 
 import numpy as np
 from heapq import heappush, heappop
@@ -161,23 +161,22 @@ class RLSNode(UWNode):
 				# first cycle: register anchors
 				if count == 1:
 					position, error = self.neighbors[sender]
-					x, y, z = position
-					self.tdoaCalc.addAnchor(level, x, y, z)
+					self.tdoaCalc.addAnchor(sender, position)
 					self.anchorErrors[level] = error
 				else:
-					for a in self.tdoaCalc.anchorPositions:
-						if a is None:
-							self.tdoaCalc = None
-							return
+					if len(self.tdoaCalc.anchors) < 4:
+						self.tdoaCalc = None
+						return
 				# all cycles: register data
-				self.tdoaCalc.addDataPoint(count, level, time, delay)
+				self.tdoaCalc.addDataPoint(sender, count, (time, delay))
 				# final beacon: calculate position
 				if count == UPS_NUMBER and level == 3:
-					msg, x, y, z, e = self.tdoaCalc.calculatePosition()
+					msg, position = self.tdoaCalc.getPosition()
 					self.tdoaCalc = None
 					print self.name + " calculating: " + msg
-					print x, y, z, e
-					if msg == "ok" and e < RLS_TOLERANCE:
+					print position
+					if msg == "ok":
+						x, y, z = position
 						error = 1 + max(self.anchorErrors)
 						self.positionEstimates.append((x,y,z, error))
 						if self.status in ["UP", "UA"]:
