@@ -9,16 +9,16 @@ class PositionCalculator:
 	"""Generic class handling the data-gathering side of the position calculation
 	The calculation itself, specific to the method used, is left to child classes
 	"""
-	def __init__(self, anchorMin=1, anchorMax=-1):
+	def __init__(self):
 		"""Creates a new calculator with empty data set
-		anchorMin  -- minimum number of anchors required for the calculation
-		anchorMax  -- maximum number of anchors, set to -1 if unlimited
 		"""
-		self.anchorMin = anchorMin
-		self.anchorMax = anchorMax
 		self.anchors = []       # list of anchor names
 		self.positions = {}     # associates to each anchor its position (array of three numbers)
 		self.data = []          # list of data series, each associating to each anchor a data point
+		
+		# parameters to be set by the child classes
+		self.anchorMin = 1      # minimum number of anchors required for the calculation
+		self.anchorMax = -1     # minimum number of anchors required for the calculation (-1 for unlimited)
 	
 	def addAnchor(self, name, position):
 		"""Adds an anchor to the data set
