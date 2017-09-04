@@ -3,7 +3,7 @@
 from parameters import *
 from SimEnvironment import SimEnvironment, distance
 from UWNode import UWNode
-from TDOACalculator import TDOACalculator
+from PositionCalculator import TDOACalculator
 
 class AnchorNode(UWNode):
 	"""Node that knows its position and takes part in the beaconing sequence"""
@@ -89,7 +89,7 @@ class SensorNode(UWNode):
 		self.tdoaCalc = TDOACalculator()
 		self.timeout = float('inf')
 		self.positionEstimate = None
-		self.errorEstimate = 0
+		# self.errorEstimate = 0
 	
 	def tick(self, time):
 		"""Function called every tick, lets the node perform operations
@@ -98,17 +98,18 @@ class SensorNode(UWNode):
 		Never transmits
 		"""
 		if time >= self.timeout:
-			error, x, y, z, e = self.tdoaCalc.calculatePosition()
+			error, position = self.tdoaCalc.getPosition()
 			if error != "ok":
 				print self.name + " could not find its position: " + error
 				print "       actual position: " + "%.3f, %.3f, %.3f" % self.position
 			else:
+				x, y, z = position
 				print self.name + " found position: " + "%.3f, %.3f, %.3f" % (x, y, z)
 				print "       actual position: " + "%.3f, %.3f, %.3f" % self.position
-				print "                 error: " + "%.3f" % distance(self.position, (x,y,z))
-				print "        error estimate: " + "%.3f" % e
-				self.positionEstimate = (x,y,z)
-				self.errorEstimate = e
+				print "                 error: " + "%.3f" % distance(self.position, position)
+				# print "        error estimate: " + "%.3f" % e
+				self.positionEstimate = position
+				# self.errorEstimate = e
 			self.timeout = float('inf')
 		return ""
 	
@@ -121,8 +122,8 @@ class SensorNode(UWNode):
 		beaconCount = int(message.split()[0])
 		anchor = int(message.split()[1])
 		x, y, z, delay = [ float(i) for i in message.split()[2:6] ]
-		self.tdoaCalc.addAnchor(anchor, x, y, z)
-		self.tdoaCalc.addDataPoint(beaconCount, anchor, time, delay)
+		self.tdoaCalc.addAnchor(anchor, (x, y, z))
+		self.tdoaCalc.addDataPoint(anchor, beaconCount, (time, delay))
 		self.timeout = time + 5        # arbitrary 5-second timeout
 	
 	def display(self, plot):
@@ -136,5 +137,5 @@ class SensorNode(UWNode):
 			ex, ey, ez = self.positionEstimate
 			plot.scatter(x, y, z, c='b', marker='^', lw=0)
 			plot.scatter(ex, ey, ez, c='k', marker='+')
-			plot.scatter(ex, ey, ez, c=(0,0,1,0.2), marker='o', lw=0, s=50*self.errorEstimate)
+			# plot.scatter(ex, ey, ez, c=(0,0,1,0.2), marker='o', lw=0, s=50*self.errorEstimate)
 			plot.plot([x,ex], [y,ey], [z,ez], 'k:')
