@@ -3,7 +3,7 @@
 from parameters import *
 from SimEnvironment import SimEnvironment, distance
 from UWNode import UWNode
-from TDOACalculator import TDOACalculator
+from PositionCalculator import TDOACalculator
 
 import numpy as np
 
@@ -23,12 +23,12 @@ class LSLSNode(UWNode):
 		self.master = []
 		if localized:
 			self.positionEstimate = position
-			self.errorEstimate = 0
+			# self.errorEstimate = 0
 			self.status = "LOCALIZED"
 			self.level = 1
 		else:
 			self.positionEstimate = None
-			self.errorEstimate = -1
+			# self.errorEstimate = -1
 			self.status = "UNLOCALIZED"
 			self.level = 0
 	
@@ -102,8 +102,8 @@ class LSLSNode(UWNode):
 							self.status = "LISTENING"
 							self.tdoaCalc = TDOACalculator()
 							for i in xrange(4):
-								a, (x,y,z) = chain[i]
-								self.tdoaCalc.addAnchor(i, x, y, z)
+								a, position = chain[i]
+								self.tdoaCalc.addAnchor(i, position)
 							self.master = chain
 			elif self.status == "LISTENING":
 				pass
@@ -170,20 +170,20 @@ class LSLSNode(UWNode):
 				self.master = []
 			elif self.status == "LISTENING":
 				if self.master[level][0] == sender:
-					self.tdoaCalc.addDataPoint(count, level, time, delay)
+					self.tdoaCalc.addDataPoint(level, count, (time, delay))
 					if level == 3 and count == UPS_NUMBER - 1:
 						# beacon sequence finished, LISTENING node tries to calculate its position
 						# import json
 						# print json.dumps(self.tdoaCalc.dataArchive, sort_keys=True, indent=4)
-						msg, x, y, z, e = self.tdoaCalc.calculatePosition()
-						if msg != "ok" or e > LSLS_TOLERANCE:
+						msg, position = self.tdoaCalc.getPosition()
+						if msg != "ok":
 							# localization failed, revert to UNLOCALIZED status
 							self.status = "UNLOCALIZED"
 							self.master = []
 						else:
 							# localization successful, become CANDIDATE level 0
-							self.positionEstimate = (x,y,z)
-							self.errorEstimate = e
+							self.positionEstimate = position
+							# self.errorEstimate = e
 							self.status = "CANDIDATE"
 							self.level = 0
 							# calculate the anchor center
@@ -249,8 +249,8 @@ class LSLSNode(UWNode):
 			"ANCHOR":          ("red",      's')
 		}[self.status]
 		plot.scatter(x, y, z, c=color, marker=mark, lw=0)
-		if self.errorEstimate > 0:
+		if self.positionEstimate is not None:
 			ex, ey, ez = self.positionEstimate
 			plot.scatter(ex, ey, ez, c=color, marker='+')
-			plot.scatter(ex, ey, ez, c=(0,0,0,0.2), marker='o', lw=0, s=20*self.errorEstimate)
+			# plot.scatter(ex, ey, ez, c=(0,0,0,0.2), marker='o', lw=0, s=20*self.errorEstimate)
 			plot.plot([x,ex], [y,ey], [z,ez], 'k:')
