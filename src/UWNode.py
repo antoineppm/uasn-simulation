@@ -22,7 +22,9 @@ class UWNode:
 		"""Function called when a message broadcast by another node arrives at the node
 		time        -- date of reception (s)
 		message     -- message received
+		Returns a string to be broadcast (if the string is empty, it is not broadcast)
 		"""
+		return ""
 	
 	def display(self, plot):
 		"""Displays a representation of the node in a 3D plot

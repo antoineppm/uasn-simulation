@@ -41,6 +41,7 @@ class AnchorNode(UWNode):
 		"""Function called when a message broadcast by another node arrives at the node
 		time        -- date of reception (s)
 		message     -- message received
+		Never transmits
 		"""
 		priority = int(message.split()[1])
 		if priority + 1 == self.priority:
@@ -50,6 +51,7 @@ class AnchorNode(UWNode):
 			if self.distanceToPrevious is None:
 				self.distanceToPrevious = distance(self.position, (x,y,z))
 			self.timeOrigin = time - (self.distanceToPrevious / SND_SPEED) - delay
+		return ""
 	
 	def display(self, plot):
 		"""Displays a representation of the node in a 3D plot
@@ -117,6 +119,7 @@ class SensorNode(UWNode):
 		"""Function called when a message broadcast by another node arrives at the node
 		time        -- date of reception (s)
 		message     -- message received
+		Never transmits
 		"""
 		# print "{:6}".format("%.3f" % time) + " -- " + self.name + " received beacon: " + message
 		beaconCount = int(message.split()[0])
@@ -125,6 +128,7 @@ class SensorNode(UWNode):
 		self.tdoaCalc.addAnchor(anchor, (x, y, z))
 		self.tdoaCalc.addDataPoint(anchor, beaconCount, (time, delay))
 		self.timeout = time + 5        # arbitrary 5-second timeout
+		return ""
 	
 	def display(self, plot):
 		"""Displays a representation of the node in a 3D plot

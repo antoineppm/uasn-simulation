@@ -80,6 +80,7 @@ class LSLSNode(UWNode):
 		"""Function called when a message broadcast by another node arrives at the node
 		time        -- date of reception (s)
 		message     -- message received
+		Never transmits
 		"""
 		sp = message.split()
 		sender = sp[0]
@@ -202,6 +203,7 @@ class LSLSNode(UWNode):
 				if parent == sender and self.level == level + 1:
 					self.timer = time - d/SND_SPEED - delay         # trigger a beacon at next tick, and indicate the time origin to use
 					self.beaconCount = count
+		return ""
 	
 	def standardTimer(self):
 		"""A duration equal to the max transmission range divided by the speed of sound.

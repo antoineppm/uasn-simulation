@@ -63,14 +63,11 @@ class SimEnvironment:
 				self.show()
 				showTime += show
 			if len(message) == 0:               # tick
-				tick = SIM_TICK
 				for node in self.nodes:
 					transmission = node.tick(time)
 					if len(transmission) > 0:
 						self.broadcast(time, node.position, transmission)
-						if verbose:
-							print "%.3f" % time + " >> " + transmission
-				heappush(self.events, (time + tick, "", None))
+				heappush(self.events, (time + SIM_TICK, "", None))
 				# update the speed of sound
 				N = 10                  # determines the variation speed
 				self.speedMatrix *= (N - tick)
@@ -79,7 +76,9 @@ class SimEnvironment:
 			else:
 				if verbose:
 					print "%.3f" % time + "    " + message + " >> " + recipient.name
-				recipient.receive(time, message)
+				reply = recipient.receive(time, message)
+				if len(reply) > 0:
+					self.broadcast(time + SIM_TICK, node.position, reply)   # the reply is sent after a delay of one tick
 		if verbose:
 			print "...end"
 	
@@ -98,6 +97,8 @@ class SimEnvironment:
 		position    -- position of broadcasting node (m,m,m)
 		message     -- message to be broadcast
 		"""
+		if verbose:
+			print "%.3f" % time + " >> " + transmission
 		for node in self.nodes:
 			d = distance(node.position, position)
 			if d > 0 and d <= SIM_RANGE and uniform(0,1) > SIM_LOSS:
