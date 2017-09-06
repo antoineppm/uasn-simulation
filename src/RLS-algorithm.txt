@@ -23,8 +23,6 @@ LOCATING NEW NODES
 
 Anchor sets are chosen by unlocalized nodes, who attempt to find good sets among their registered neighbors, then make a request.
 
-TO DO LATER: the new anchors use ToA to find a more precise location estimate using former anchors around them.
-
 The anchors then do a fixed number of UPS beaconing cycles. On the first cycle they also broadcast their estimated position (which may have changed since they first calculated it, see above). The last beacon transmission prompts all nodes to estimate their position from the 
 
 Hence, the method consists of the following steps:
@@ -32,6 +30,12 @@ Hence, the method consists of the following steps:
 - anchors use the UPS method to locate nodes around them
 - newly localized nodes broadcast their position
 - repeat until all nodes are localized
+
+LOCATING ANCHORS
+
+Before it can serve as an anchor, a node must be precisely located using a TOA method.
+- a new anchor-to-be sends a message "ping"
+- all nearby current and past anchors reply with a message "ack" indicating the retransmission delay
 
 AVOIDING COLLISIONS
 
@@ -49,49 +53,86 @@ This method solves 1) and 2): nowhere in the network will two nodes be transmitt
 
 To meet the requirement 3), nodes will not make request if they received a position broadcast within the last half-cycle (waiting a cycle more for all the nodes to make their broadcast).
 
-Anchor beaconing is not bound to these timeslots and supersede them. A node that has received a beacon recently will not transmit, even during its timeslot.
+Anchor messages are not bound to these timeslots and supersede them. A node that has received such a message recently will not transmit, even during its timeslot.
 
 ANCHOR SET SELECTION
 
 All neigboring nodes need to be tested against each other in sets of 4 to determine the best fit (complexity O(n⁴), if done when receiving new position O(n³) each time)
 
-TO DO LATER
+Selection is done by calculating the "triple product" of the anchors: AB.(ACxAD), for the anchor positions A, B, C, D (the result is the same no matter the order of the anchors). It is indicative both of shape ("flat" anchor sets have a lower score") and size.
+
+Another factor serves to limit error accumulations. Each node is assigned an "error rating", according to the following rules:
+- nodes whose location is known a priori have a rating of 0
+- nodes located in previous iterations have the rating of their highest-rated anchor, plus 1.
+
+The error rating of the candidate anchors is factored in the selection (anchors with a higher rating are less likely to be selected)
 
 NODE STATUS
 
-"unlocalized-passive"
+There are three primary states:
+"UNLOCALIZED"	node that does not know its location, can make requests
+"LOCALIZED"	node that was roughly located through UPS, can become an anchor
+"ANCHOR"	node that was precisely located through TOA
+
+For each of these states, the node can have a secondary state
+
+UNLOCALIZED/idle
 The node is not localized, and cannot make requests due to ongoing position broadcasts
+Initial state for unlocalized nodes
 START	initial state
 	when receiving "position" message in certain timeslots
 	after failed localization
-END	on timeslot (-> "unlocalized-active")
-	when localized (-> "localized-new")
+END	on timeslot (-> /requesting)
+	when localized (-> LOCALIZED/broadcasting)
 
-"unlocalized-active"
+UNLOCALIZED/requesting
 The node is not localized, but ready to make a request
-START	on timeslot (from "unlocalized-passive")
-END	when localized (-> "localized-new")
-	when receiving "position" message in certain timeslots (-> "unlocalized-passive")
+START	on timeslot (from idle)
+END	when localized (-> LOCALIZED/new)
+	when receiving "position" message in certain timeslots (-> /idle)
 
-"localized-new"
+LOCALIZED/new
 The node has calculated a position estimate, but has not yet broadcast it
-START	when localized (from "unlocalized-*")
-	when relocalized (from "localized-ready")
-END	when broadcasting position (-> "localized-ready")
+START	when localized (from UNLOCALIZED/)
+END	when broadcasting position (-> /ready)
 
-"localized-ready"
+LOCALIZED/ready
 The node has a position estimate and broadcast it, it can be used as anchor
-START	when broadcasting position (from "localized-new")
-END	on request (-> "anchor")
-	when relocalized (-> "localized-new")
+START	when broadcasting position (from /new)
+END	on request (-> /anchor)
 
-"anchor"
+LOCALIZED/confirming
+The node has been requested as an anchor
+START	on request (from /ready)
+END	on confirmation (-> /toa)
+	on timeout (-> /ready)
+
+LOCALIZED/toa
+The node has been requested and is in the process of localizing itself with TOA
+START	on confirmation (from /confirming)
+END	when localization ends (-> ANCHOR/active)
+
+ANCHOR/confirming
+The node has been requested as an anchor
+START	on request (from /ready)
+END	on confirmation (-> /active)
+	on timeout (-> /ready)
+
+ANCHOR/active
 The node is currently serving as an anchor for localizing nearby nodes
-START	on request (from "localized-ready")
-END	when beaconing ends (-> "localized-ready")
+START	on TOA localization (from LOCALIZED/toa)
+	on confirmation (from /confirming)
+END	when beaconing ends (-> /ready)
 
-Additional status:
-"listening" timer: set for 2 timeslots when a "beacon" message is received, prevents transmission.
+ANCHOR/ready
+This node has served as an anchor in the past and has been located precisely through TOA
+START	when beaconing ends (from /active)
+END	on request (-> /confirming)
+
+ANCHOR/init
+Initial state for localized nodes
+START	initial state
+END	when broadcasting position (-> /ready)
 
 MESSAGES
 
@@ -102,14 +143,36 @@ sender 		the name of the node sending the message
 object		identifies the type of message
 data		additional information (there can be no data)
 
-"position" x y z e
+"position" x y z
 Position broadcast from a newly localized node
+ALL			register the neighbor node
+UNLOCALIZED		rate and register new anchor sets
 
 "request" node0 node1 node2 node3
 Request sent by an unlocalized node to neighbor nodes
+LOCALIZED/ready		if concerned: become /confirming
+ANCHOR/ready		if concerned: become /confirming
+ELSE			temporary silence
+
+"confirm" x y z
+Anchor confirmation sent by an "anchor-active" node
+LOCALIZED/confirming	if concerned: send "ping", become /toa
+ANCHOR/confirming	if concerned: send "confirm", become /active
+ELSE			temporary silence
+
+"ping"
+Request of TOA localization sent by an "anchor-new" node
+ANCHOR			send back "ack"
+ELSE			temporary silence
+
+"ack" node delay
+Reply to a "ping" message sent by all nearby anchor nodes
+LOCALIZED/toa		if concerned: register data
 
 "beacon" level count delay
-Message sent by anchors for the localization process.
+Message sent by anchors for the localization process
+ANCHOR/active		if concerned: send "beacon"
+ELSE			register data, temporary silence
 
 
 
