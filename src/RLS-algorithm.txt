@@ -90,11 +90,13 @@ The node is not localized, but ready to make a request
 START	on timeslot (from idle)
 END	when localized (-> LOCALIZED/new)
 	when receiving "position" message in certain timeslots (-> /idle)
+SILENCE	"request" "confirm" "ping" "ack" "beacon" 2 timeslot
 
 LOCALIZED/new
 The node has calculated a position estimate, but has not yet broadcast it
 START	when localized (from UNLOCALIZED/)
 END	when broadcasting position (-> /ready)
+SILENCE	"request" "confirm" "ping" "ack" "beacon" 2 timeslot
 
 LOCALIZED/ready
 The node has a position estimate and broadcast it, it can be used as anchor
@@ -105,24 +107,25 @@ LOCALIZED/confirming
 The node has been requested as an anchor
 START	on request (from /ready)
 END	on confirmation (-> /toa)
-	on timeout (-> /ready)
+TIMEOUT	"confirm" 1 timeslot, "ping" 3 timeslot (-> /ready)
 
 LOCALIZED/toa
 The node has been requested and is in the process of localizing itself with TOA
 START	on confirmation (from /confirming)
-END	when localization ends (-> ANCHOR/active)
+TIMEOUT	2 timeslot (-> ANCHOR/active if localization successful, else LOCALIZED/ready)
 
 ANCHOR/confirming
 The node has been requested as an anchor
 START	on request (from /ready)
 END	on confirmation (-> /active)
-	on timeout (-> /ready)
+TIMEOUT	"confirm" 1 timeslot, "ping" 3 timeslot (-> /ready)
 
 ANCHOR/active
 The node is currently serving as an anchor for localizing nearby nodes
 START	on TOA localization (from LOCALIZED/toa)
 	on confirmation (from /confirming)
 END	when beaconing ends (-> /ready)
+TIMEOUT "confirm" "beacon" 1 timeslot, "ping" 3 timeslot (-> /ready)
 
 ANCHOR/ready
 This node has served as an anchor in the past and has been located precisely through TOA
@@ -154,7 +157,7 @@ LOCALIZED/ready		if concerned: become /confirming
 ANCHOR/ready		if concerned: become /confirming
 ELSE			temporary silence
 
-"confirm" x y z
+"confirm" level x y z
 Anchor confirmation sent by an "anchor-active" node
 LOCALIZED/confirming	if concerned: send "ping", become /toa
 ANCHOR/confirming	if concerned: send "confirm", become /active
