@@ -135,7 +135,8 @@ class TDOACalculator(PositionCalculator):
 		try:
 			A = np.linalg.inv(M).dot(I)
 			B = np.linalg.inv(M).dot(J)
-		except np.LinAlgErr:
+		except np.linalg.linalg.LinAlgError:
+			print M
 			return "could not be solved", np.zeros(3)
 		# solving quadratic equation
 		alpha = A.dot(A) - 1
@@ -214,7 +215,11 @@ class TOACalculator(PositionCalculator):
 				R[i] = data[i] - dist
 				J[i] = (self.positions[a] - X) / dist
 			
-			diff = np.linalg.inv(J.T.dot(J)).dot(J.T).dot(R)    # differential of the Gauss-Newton method
+			try:
+				diff = np.linalg.inv(J.T.dot(J)).dot(J.T).dot(R)    # differential of the Gauss-Newton method
+			except np.linalg.linalg.LinAlgError:
+				print k, J, J.T.dot(J)
+				return "could not be solved", np.zeros(3)
 			var = np.linalg.norm(diff)
 			X = X - diff
 			
