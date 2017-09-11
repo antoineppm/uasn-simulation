@@ -31,7 +31,8 @@ class RLSNode(UWNode):
 		self.slotTimer = id             # timer indicating the next timeslot (unit: timeslot length)
 		RLSNode.slotNumber = max(id+1, RLSNode.slotNumber)
 		# neighbor registration
-		self.neighbors = {}             # associates a position to each neighbor's name
+		self.neighbors = {}             # associates a pair bool,position to each neighbor's name
+		                                # the boolean indicates if the neighbor is an anchor (precisely located)
 		# localization
 		self.calculator = None          # can be either TDOA or TOA calculator
 		# "unlocalized" status
@@ -39,9 +40,10 @@ class RLSNode(UWNode):
 		# "localized" status
 		self.positionEstimates = [np.array(position)] if localized else []
 		# "anchor" status
-		self.anchorLevel = None         # place in the beaconing order (0 to 3)
-		self.anchorMaster = None        # name of the previous anchor in the beaconing order (or last one if level = 0)
-		self.beaconCount = None         # counts the beaconing series
+		self.subAnchors = []            # anchors coming after in the beaconing cycle that have not anchor rank yet
+		self.anchorLevel = 0            # place in the beaconing
+		self.anchorMaster = None        # anchor coming just before in the beaconing cycle
+		self.beaconCount = 1            # counts the beaconing series
 	
 	def tick(self, time):
 		"""Function called every tick, lets the node perform operations
@@ -81,15 +83,15 @@ class RLSNode(UWNode):
 					self.status[1] = "ready"
 			
 			elif self.status[1] == "toa":
-				if time > self.timestamp + 2*(SIM_TICK + SIM_RANGE/SND_SPEED):
+				if time > self.timestamp + 2*RLS_TIMESLOT:
 					msg, position = self.calculator.getPosition()
 					if msg == "ok":
-						self.status[0] = "ANCHOR"
-						self.status[1] = "confirming" if self.anchorLevel == 0 else "active"
+						print self.name, msg, position, distance(position, self.position)
+						self.status = ["ANCHOR", "confirming"]
 						self.timestamp = time + RLS_TIMESLOT
 						self.positionEstimates = [position]
 						x, y, z = position
-						return self.name + " confirm " + str(self.anchorLevel) + " " + str(x) + " " + str(y) + " " + str(z)
+						return self.name + " anchor " + " " + str(x) + " " + str(y) + " " + str(z)
 					else:
 						self.status[1] = "ready"
 		
@@ -108,7 +110,24 @@ class RLSNode(UWNode):
 				if timeslotOpen:
 					self.status[1] = "ready"
 					x, y, z = self.getPosition()
-					return self.name + " position " + str(x) + " " + str(y) + " " + str(z)
+					return self.name + " anchor " + str(x) + " " + str(y) + " " + str(z)
+		
+		if self.status[1] == "confirming":
+			# similar behavior regardless of primary status
+			if len(self.subAnchors) == 0:
+				if self.status[0] == "ANCHOR":
+					self.status[1] = "active"
+					if self.anchorLevel == 0:
+						return self.name + " beacon 0 1 0"
+				else:
+					self.status[1] = "toa"
+					self.calculator = TOACalculator(self.getPosition())
+					self.timestamp = time
+					return self.name + " ping"
+			elif time > self.timestamp:
+				print self.name, self.status, "timeout", self.timestamp
+				self.status[1] = "ready"
+			
 		
 		return ""
 	
@@ -130,15 +149,30 @@ class RLSNode(UWNode):
 			y = float(data[1])
 			z = float(data[2])
 			position = np.array([x, y, z])
+			# add to the list of neighbor
+			self.neighbors[sender] = (False, position)
 			# if node is unlocalized, attempt to find a better anchor set, and revert to "idle" status
 			if self.status[0] == "UNLOCALIZED":
 				self.findAnchors(sender, position)
 				self.status[1] = "idle"
-			# add to the list of neighbor
-			self.neighbors[sender] = position
 		
-		confirmed = False
-		beaconing = False
+		if subject == "anchor":
+			# ALL: register the neighbor
+			# UNLOCALIZED: update anchor ratings
+			# confirming: remove from the list of sub-anchors, if applicable
+			x = float(data[0])
+			y = float(data[1])
+			z = float(data[2])
+			position = np.array([x, y, z])
+			# add to the list of neighbor
+			self.neighbors[sender] = (True, position)
+			# if node is unlocalized, attempt to find a better anchor set, and revert to "idle" status
+			if self.status[0] == "UNLOCALIZED":
+				self.findAnchors(sender, position)
+				self.status[1] = "idle"
+			# remove from sub-anchors
+			while sender in self.subAnchors:
+				self.subAnchors.remove(sender)
 		
 		if subject == "request":
 			# silence timer
@@ -147,60 +181,16 @@ class RLSNode(UWNode):
 			# /ready, concerned: transition to /confirming
 			# if level 0: transition to next state
 			if self.status[1] == "ready" and self.name in data:
+				for node in data:
+					if node not in self.neighbors and node != self.name:
+						return ""
 				i = data.index(self.name)
-				master = data[i-1 % 4]
-				if master not in self.neighbors:
-					return ""
+				self.subAnchors =  [ node for node in data[i+1:] if not self.neighbors[node][0] ]
+				self.anchorLevel = i
+				self.anchorMaster = data[(i-1) % 4]
 				self.status[1] = "confirming"
 				self.timestamp = time + RLS_TIMESLOT
-				self.anchorLevel = i
-				self.anchorMaster = master
-				self.beaconCount = 0
-				if i == 0:
-					confirmed = True
-		
-		if subject == "confirm":
-			# silence & timeout
-			if self.status[0] == "UNLOCALIZED" or self.status[1] == "new":
-				self.timestamp = time + 2*RLS_TIMESLOT
-			if self.status[1] == "confirming" or self.status[1] == "active":
-				self.timestamp = time + RLS_TIMESLOT
-			# ALL: register the position
-			# not ANCHOR, not /confirming: prepare TDOA calculations
-			# /confirming, concerned: send "confirm", transition to next state
-			# if LOCALIZED: send "ping"
-			# if ANCHOR, level 0: send "beacon"
-			level = int(data[0])
-			x = float(data[1])
-			y = float(data[2])
-			z = float(data[3])
-			position = np.array([x, y, z])
-			self.neighbors[sender] = position
-			if self.status[1] == "confirming":
-				if sender == self.anchorMaster:
-					self.status[1] = "active"
-					if self.anchorLevel == 0:
-						beaconing = True
-					else:
-						confirmed = True
-			elif self.status[0] != "ANCHOR":
-				if level == 0 and self.calculator is None:
-					self.calculator = TDOACalculator()
-					self.calculator.addAnchor(sender, position)
-				elif self.calculator is not None:
-					if level == len(self.calculator.anchors):
-						self.calculator.addAnchor(sender, position)
-		
-		if confirmed:
-			if self.status[0] == "ANCHOR":
-				self.timestamp = time + RLS_TIMESLOT
-				x, y, z = self.getPosition()
-				return self.name + " confirm " + str(self.anchorLevel) + " " + str(x) + " " + str(y) + " " + str(z)
-			else:
-				self.status[1] = "toa"
-				self.timestamp = time + SIM_TICK
-				self.calculator = TOACalculator(self.getPosition())
-				return self.name + " ping"
+				self.beaconCount = 1
 		
 		if subject == "ping":
 			# silence & timeout
@@ -221,7 +211,7 @@ class RLSNode(UWNode):
 			delay = float(data[1])
 			if self.status[1] == "toa":
 				if self.name == recipient:
-					self.calculator.addAnchor(sender, self.neighbors[sender])
+					self.calculator.addAnchor(sender, self.neighbors[sender][1])
 					self.calculator.addDataPoint(sender, 0, (time - self.timestamp, delay))
 		
 		if subject == "beacon":
@@ -245,12 +235,25 @@ class RLSNode(UWNode):
 					# should not happen!
 					self.status[1] = "ready"
 					return ""
-				beaconing = True
-			else:
-				# check if concerned
-				if self.calculator is None:
+				if self.anchorLevel == 0:
+					self.beaconCount += 1
+					newDelay = 0
+				else:
+					self.beaconCount = count
+					timeToMaster = distance(self.getPosition(), self.neighbors[sender][1]) / SND_SPEED
+					newDelay = delay + timeToMaster + SIM_TICK
+				if self.beaconCount == UPS_NUMBER:
+					self.status[1] = "ready"
+				return self.name + " beacon " + str(self.anchorLevel) + " " + str(self.beaconCount) + " " + str(newDelay)
+			elif self.status[0] != "ANCHOR":
+				if count == 1 and level == 0:
+					self.calculator = TDOACalculator()
+				elif self.calculator is None:
 					return ""
-				if len(self.calculator.anchors) < 4:
+				if count == 1 and len(self.calculator.anchors) == level and sender not in self.calculator.anchors:
+					self.calculator.addAnchor(sender, self.neighbors[sender][1])
+				elif len(self.calculator.anchors) < 4:
+					self.calculator = None
 					return ""
 				if sender != self.calculator.anchors[level]:
 					return ""
@@ -259,24 +262,12 @@ class RLSNode(UWNode):
 				# if finished, do calculation
 				if level == 3 and count == UPS_NUMBER:
 					msg, position = self.calculator.getPosition()
-					print self.name, msg, position
+					print self.name, msg, position, distance(position, self.position)
 					if msg == "ok":
 						self.positionEstimates.append(position)
 						if self.status[0] == "UNLOCALIZED":
 							self.status = ["LOCALIZED", "new"]
 					self.calculator = None
-		
-		if beaconing:
-			if self.anchorLevel == 0:
-				self.beaconCount += 1
-				newDelay = 0
-			else:
-				self.beaconCount = count
-				timeToMaster = distance(self.getPosition(), self.neighbors[sender]) / SND_SPEED
-				newDelay = delay + timeToMaster + SIM_TICK
-			if self.beaconCount == UPS_NUMBER:
-				self.status[1] = "ready"
-			return self.name + " beacon " + str(self.anchorLevel) + " " + str(self.beaconCount) + " " + str(newDelay)
 		
 		return ""
 					
@@ -299,29 +290,36 @@ class RLSNode(UWNode):
 			plot.plot([x,ex], [y,ey], [z,ez], 'k:')
 	
 	def findAnchors(self, newNode, position):
+		# very inefficient function
+		self.bestAnchors = []
 		l = len(self.neighbors)
-		if l >= 3:
-			for n1, n2, n3 in combinations(self.neighbors.keys(), 3):
-				p1 = self.neighbors[n1]
-				p2 = self.neighbors[n2]
-				p3 = self.neighbors[n3]
-				s = self.rateAnchors([position, p1, p2, p3])
+		if l >= 4:
+			for n0, n1, n2, n3 in combinations(self.neighbors.keys(), 4):
+				s = self.rateAnchors([n0, n1, n2, n3])
 				if s > 0:
-					heappush(self.bestAnchors, (-s, newNode, n1, n2, n3))
-			# print self.name + " " + str(self.bestAnchors) + " " + str(score)
+					heappush(self.bestAnchors, (-s, n0, n1, n2, n3))
 	
-	def rateAnchors(self, positions):
+	def rateAnchors(self, anchors):
+		isAnchor = [ self.neighbors[node][0] for node in anchors ]
+		positions = [ self.neighbors[node][1] for node in anchors ]
 		# eliminate sets where nodes are too distant
+		avgDist = 0
 		for n1 in positions:
 			for n2 in positions:
-				if np.linalg.norm(n1-n2) > SIM_RANGE:
+				d = np.linalg.norm(n1-n2)
+				if d > SIM_RANGE:
 					return 0
+				else:
+					avgDist += d
+		avgDist /= 12
 		# calculate the score
+		sizeRating = min(avgDist, SIM_RANGE/2)
 		a = positions[1] - positions[0]
 		b = positions[2] - positions[0]
 		c = positions[3] - positions[0]
-		shapeRating = abs(np.dot(a, np.cross(b, c)))
-		return shapeRating
+		shapeRating = abs(np.dot(a, np.cross(b, c)))**(1/3) / avgDist
+		anchorRating = (1 + sum(isAnchor))**2
+		return sizeRating * shapeRating * anchorRating
 	
 	def getPosition(self):
 		# average the estimates
