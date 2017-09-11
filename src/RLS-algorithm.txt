@@ -90,13 +90,13 @@ The node is not localized, but ready to make a request
 START	on timeslot (from idle)
 END	when localized (-> LOCALIZED/new)
 	when receiving "position" message in certain timeslots (-> /idle)
-SILENCE	"request" "confirm" "ping" "ack" "beacon" 2 timeslot
+SILENCE	"request" "ping" "ack" "beacon" 2 timeslot
 
 LOCALIZED/new
 The node has calculated a position estimate, but has not yet broadcast it
 START	when localized (from UNLOCALIZED/)
 END	when broadcasting position (-> /ready)
-SILENCE	"request" "confirm" "ping" "ack" "beacon" 2 timeslot
+SILENCE	"request" "ping" "ack" "beacon" 2 timeslot
 
 LOCALIZED/ready
 The node has a position estimate and broadcast it, it can be used as anchor
@@ -106,8 +106,8 @@ END	on request (-> /anchor)
 LOCALIZED/confirming
 The node has been requested as an anchor
 START	on request (from /ready)
-END	on confirmation (-> /toa)
-TIMEOUT	"confirm" 1 timeslot, "ping" 3 timeslot (-> /ready)
+END	when all subordinate anchors are TOA-located (-> /toa)
+TIMEOUT	"ping" 3 timeslot (-> /ready)
 
 LOCALIZED/toa
 The node has been requested and is in the process of localizing itself with TOA
@@ -117,15 +117,15 @@ TIMEOUT	2 timeslot (-> ANCHOR/active if localization successful, else LOCALIZED/
 ANCHOR/confirming
 The node has been requested as an anchor
 START	on request (from /ready)
-END	on confirmation (-> /active)
-TIMEOUT	"confirm" 1 timeslot, "ping" 3 timeslot (-> /ready)
+END	when all subordinate anchors are TOA-located (-> /active)
+TIMEOUT	"ping" 3 timeslot (-> /ready)
 
 ANCHOR/active
 The node is currently serving as an anchor for localizing nearby nodes
 START	on TOA localization (from LOCALIZED/toa)
 	on confirmation (from /confirming)
 END	when beaconing ends (-> /ready)
-TIMEOUT "confirm" "beacon" 1 timeslot, "ping" 3 timeslot (-> /ready)
+TIMEOUT "beacon" 1 timeslot, "ping" 3 timeslot (-> /ready)
 
 ANCHOR/ready
 This node has served as an anchor in the past and has been located precisely through TOA
@@ -147,7 +147,7 @@ object		identifies the type of message
 data		additional information (there can be no data)
 
 "position" x y z
-Position broadcast from a newly localized node
+Rough position broadcast from a newly TDOA-localized node
 ALL			register the neighbor node
 UNLOCALIZED		rate and register new anchor sets
 
@@ -155,27 +155,25 @@ UNLOCALIZED		rate and register new anchor sets
 Request sent by an unlocalized node to neighbor nodes
 LOCALIZED/ready		if concerned: become /confirming
 ANCHOR/ready		if concerned: become /confirming
-ELSE			temporary silence
-
-"confirm" level x y z
-Anchor confirmation sent by an "anchor-active" node
-LOCALIZED/confirming	if concerned: send "ping", become /toa
-ANCHOR/confirming	if concerned: send "confirm", become /active
-ELSE			temporary silence
 
 "ping"
 Request of TOA localization sent by an "anchor-new" node
 ANCHOR			send back "ack"
-ELSE			temporary silence
 
 "ack" node delay
 Reply to a "ping" message sent by all nearby anchor nodes
 LOCALIZED/toa		if concerned: register data
 
+"anchor" x y z
+Precise position broadcast from a newly TOA-localized node
+ALL			register the neighbor node
+LOCALIZED/confirming	if concerned: send "ping", become /toa
+ANCHOR/confirming	if concerned: become /active, send "beacon" if master
+
 "beacon" level count delay
 Message sent by anchors for the localization process
 ANCHOR/active		if concerned: send "beacon"
-ELSE			register data, temporary silence
+ELSE			register data
 
 
 
