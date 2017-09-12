@@ -245,7 +245,7 @@ class RLSNode(UWNode):
 				if self.beaconCount == UPS_NUMBER:
 					self.status[1] = "ready"
 				return self.name + " beacon " + str(self.anchorLevel) + " " + str(self.beaconCount) + " " + str(newDelay)
-			elif self.status[0] != "ANCHOR":
+			elif self.status[0] != "ANCHOR" and self.status[1] not in ["confirming", "toa"]:
 				if count == 1 and level == 0:
 					self.calculator = TDOACalculator()
 				elif self.calculator is None:
