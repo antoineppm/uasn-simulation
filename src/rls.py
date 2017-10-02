@@ -221,7 +221,7 @@ class RLSNode(UWNode):
 			if self.status[1] == "new":
 				self.timestamp = time + 2*RLS_TIMESLOT
 			if self.status[1] == "active":
-				self.timestamp = time + RLS_TIMESLOT
+				self.timestamp = time + 2*RLS_TIMESLOT
 			# not ANCHOR: register TDOA data
 			# ANCHOR/active, concerned: send "beacon"
 			level = int(data[0])
@@ -278,8 +278,8 @@ class RLSNode(UWNode):
 		"""
 		x, y, z = self.position
 		color, mark = {
-			"UNLOCALIZED": ("grey",  'v'),
-			"LOCALIZED": ("black", '^'),
+			"UNLOCALIZED": ("black",  'v'),
+			"LOCALIZED": ("cyan", '^'),
 			"ANCHOR": ("blue",  '^')
 		}[self.status[0]]
 		plot.scatter(x, y, z, c=color, marker=mark, lw=0)
