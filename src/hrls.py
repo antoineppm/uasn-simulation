@@ -9,7 +9,7 @@ import numpy as np
 from heapq import heappush, heappop
 from itertools import combinations
 
-class RLSNode(UWNode):
+class HRLSNode(UWNode):
 	"""Node class implementing the "reactive localization scheme"""
 	
 	slotNumber = 0  # number of time slots in a full cycle
@@ -29,7 +29,7 @@ class RLSNode(UWNode):
 		                                # /confirming, ANCHOR/active: timeout
 		                                # LOCALIZED/toa: time origin
 		self.slotTimer = id             # timer indicating the next timeslot (unit: timeslot length)
-		RLSNode.slotNumber = max(id+1, RLSNode.slotNumber)
+		HRLSNode.slotNumber = max(id+1, HRLSNode.slotNumber)
 		# neighbor registration
 		self.neighbors = {}             # associates a pair bool,position to each neighbor's name
 		                                # the boolean indicates if the neighbor is an anchor (precisely located)
@@ -52,7 +52,7 @@ class RLSNode(UWNode):
 		"""
 		
 		if time / RLS_TIMESLOT > self.slotTimer:
-			self.slotTimer += RLSNode.slotNumber
+			self.slotTimer += HRLSNode.slotNumber
 			timeslotOpen = True
 			# print self.name, self.status[0] + "/" + self.status[1]
 		else:

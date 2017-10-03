@@ -1,4 +1,4 @@
-This is a description of a multi-stage, TDOA-based localization scheme: "Reactive Localization Scheme" (RLS)
+This is a description of a multi-stage, TDOA/TOA-based localization scheme: "Hybrid Reactive Localization Scheme" (HRLS)
 
 (we are assuming transmissions are never lost)
 
