@@ -119,7 +119,7 @@ class RLSNode(UWNode):
 				i = data.index(self.name)
 				master = data[i-1 % 4]
 				if master not in self.neighbors:
-					return
+					return ""
 				self.status = "A"
 				self.anchorLevel = i
 				self.anchorMaster = master
@@ -157,7 +157,7 @@ class RLSNode(UWNode):
 				if count == 1 and level == 0:
 					self.tdoaCalc = UPSCalculator()
 				elif self.tdoaCalc is None:
-					return
+					return ""
 				# first cycle: register anchors
 				if count == 1:
 					position, error = self.neighbors[sender]
@@ -166,7 +166,7 @@ class RLSNode(UWNode):
 				else:
 					if len(self.tdoaCalc.anchors) < 4:
 						self.tdoaCalc = None
-						return
+						return ""
 				# all cycles: register data
 				self.tdoaCalc.addDataPoint(sender, count, (time, delay))
 				# final beacon: calculate position
@@ -183,6 +183,8 @@ class RLSNode(UWNode):
 							self.status = "LN"
 						if self.status == "LR":
 							self.update = True
+		
+		return ""
 	
 	def display(self, plot):
 		"""Displays a representation of the node in a 3D plot
