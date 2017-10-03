@@ -3,7 +3,7 @@
 from parameters import *
 from SimEnvironment import SimEnvironment, distance
 from UWNode import UWNode
-from PositionCalculator import TDOACalculator, TOACalculator
+from PositionCalculator import UPSCalculator, TOACalculator
 
 import numpy as np
 from heapq import heappush, heappop
@@ -247,7 +247,7 @@ class HRLSNode(UWNode):
 				return self.name + " beacon " + str(self.anchorLevel) + " " + str(self.beaconCount) + " " + str(newDelay)
 			elif self.status[0] != "ANCHOR" and self.status[1] not in ["confirming", "toa"]:
 				if count == 1 and level == 0:
-					self.calculator = TDOACalculator()
+					self.calculator = UPSCalculator()
 				elif self.calculator is None:
 					return ""
 				if count == 1 and len(self.calculator.anchors) == level and sender not in self.calculator.anchors:

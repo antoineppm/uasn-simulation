@@ -3,7 +3,7 @@
 from parameters import *
 from SimEnvironment import SimEnvironment, distance
 from UWNode import UWNode
-from PositionCalculator import TDOACalculator
+from PositionCalculator import UPSCalculator
 
 import numpy as np
 from heapq import heappush, heappop
@@ -155,7 +155,7 @@ class RLSNode(UWNode):
 				self.listeningTimer = time + 2 * RLS_TIMESLOT
 				# first beacon: new calculator
 				if count == 1 and level == 0:
-					self.tdoaCalc = TDOACalculator()
+					self.tdoaCalc = UPSCalculator()
 				elif self.tdoaCalc is None:
 					return
 				# first cycle: register anchors

@@ -95,8 +95,8 @@ class PositionCalculator:
 		return "not implemented", np.zeros(3)
 	
 
-class TDOACalculator(PositionCalculator):
-	"""Position calculation based on time difference of arrival
+class UPSCalculator(PositionCalculator):
+	"""Position calculation for the UPS process
 	"""
 	def __init__(self):
 		"""Creates a new calculator with empty data set

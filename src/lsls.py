@@ -3,7 +3,7 @@
 from parameters import *
 from SimEnvironment import SimEnvironment, distance
 from UWNode import UWNode
-from PositionCalculator import TDOACalculator
+from PositionCalculator import UPSCalculator
 
 import numpy as np
 
@@ -101,7 +101,7 @@ class LSLSNode(UWNode):
 							chain.append((sender, (x,y,z)))
 						if len(chain) == 4:
 							self.status = "LISTENING"
-							self.tdoaCalc = TDOACalculator()
+							self.tdoaCalc = UPSCalculator()
 							for i in xrange(4):
 								a, position = chain[i]
 								self.tdoaCalc.addAnchor(i, position)

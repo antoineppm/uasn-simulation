@@ -3,7 +3,7 @@
 from parameters import *
 from SimEnvironment import SimEnvironment, distance
 from UWNode import UWNode
-from PositionCalculator import TDOACalculator
+from PositionCalculator import UPSCalculator
 
 class AnchorNode(UWNode):
 	"""Node that knows its position and takes part in the beaconing sequence"""
@@ -88,7 +88,7 @@ class SensorNode(UWNode):
 		"""
 		name = "sensor" + str(nb)
 		UWNode.__init__(self, name)
-		self.tdoaCalc = TDOACalculator()
+		self.calculator = UPSCalculator()
 		self.timeout = float('inf')
 		self.positionEstimate = None
 		# self.errorEstimate = 0
@@ -100,7 +100,7 @@ class SensorNode(UWNode):
 		Never transmits
 		"""
 		if time >= self.timeout:
-			error, position = self.tdoaCalc.getPosition()
+			error, position = self.calculator.getPosition()
 			if error != "ok":
 				print self.name + " could not find its position: " + error
 				print "       actual position: " + "%.3f, %.3f, %.3f" % self.position
@@ -125,8 +125,8 @@ class SensorNode(UWNode):
 		beaconCount = int(message.split()[0])
 		anchor = int(message.split()[1])
 		x, y, z, delay = [ float(i) for i in message.split()[2:6] ]
-		self.tdoaCalc.addAnchor(anchor, (x, y, z))
-		self.tdoaCalc.addDataPoint(anchor, beaconCount, (time, delay))
+		self.calculator.addAnchor(anchor, (x, y, z))
+		self.calculator.addDataPoint(anchor, beaconCount, (time, delay))
 		self.timeout = time + 5        # arbitrary 5-second timeout
 		return ""
 	
