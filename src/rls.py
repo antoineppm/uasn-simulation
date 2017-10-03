@@ -56,7 +56,7 @@ class RLSNode(UWNode):
 			self.beaconTime = None
 			beacon = self.name + " beacon " + str(self.anchorLevel) + " " + str(self.beaconCount) + " " + str(delay)
 			if self.update:
-				x, y, z, e = self.positionSynthesis()
+				x, y, z, e = self.getPosition()
 				beacon += " " + str(x) + " " + str(y) + " " + str(z) + " " + str(e)
 				self.update = False
 			return beacon
@@ -80,7 +80,7 @@ class RLSNode(UWNode):
 				
 				if self.status == "LN":
 					self.status = "LR"
-					x, y, z, e = self.positionSynthesis()
+					x, y, z, e = self.getPosition()
 					return self.name + " position " + str(x) + " " + str(y) + " " + str(z) + " " + str(e)
 				
 				if self.status == "A":
@@ -198,7 +198,7 @@ class RLSNode(UWNode):
 		}[self.status]
 		plot.scatter(x, y, z, c=color, marker=mark, lw=0)
 		if len(self.positionEstimates) > 0:
-			ex, ey, ez, ee = self.positionSynthesis()
+			ex, ey, ez, ee = self.getPosition()
 			plot.scatter(ex, ey, ez, c=color, marker='+')
 			plot.scatter(ex, ey, ez, c=(0,0,0,0.2), marker='o', lw=0, s=20*ee)
 			plot.plot([x,ex], [y,ey], [z,ez], 'k:')
@@ -229,7 +229,7 @@ class RLSNode(UWNode):
 		errorRating = 1 + sum(errors)
 		return shapeRating / errorRating
 	
-	def positionSynthesis(self):
+	def getPosition(self):
 		# takes the estimate with the lowest error
 		sx = 0
 		sy = 0
