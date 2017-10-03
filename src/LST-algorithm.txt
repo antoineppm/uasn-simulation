@@ -1,0 +1,53 @@
+This is a description of a multi-stage, TOA-based localization scheme: "Large-Scale Time-of-arrival" (LST)
+
+Each unlocalized node makes, in turn, a request. Nearby localized nodes reply. The node measures the time it took to receive each reply, and caclulates its position. It can now serve as anchor for other nearby nodes.
+
+TODO: reduce the number of replies (if needed)
+TODO: implement passive TDoA to speed up localization
+
+AVOIDING COLLISIONS
+
+Each node is assigned a timeslot. They can only make requests or broadcast their position during that timeslot.
+
+NODE STATUS
+
+UNLOCALIZED/waiting
+node that does not know its position, and is not ready to make a request
+"position"		if 3 registered neighbors or more -> /ready
+
+UNLOCALIZED/ready
+node that does not know its position, and is ready to make a request
+on timeslot		send "call", set timer (1 timeslot), -> /localizing
+
+UNLOCALIZED/localizing
+node that does not know its position, and is in the process of finding it
+"reply"			register data
+on timeout		try calculating position
+calc. success	-> LOCALIZED/new
+calc. failure	-> /waiting
+
+LOCALIZED/new
+node that knows its position but haven't broadcast it yet
+on timeslot		send "position"
+
+LOCALIZED/idle
+node that knows its position, and can reply to requests
+"request"		send "reply"
+
+MESSAGES
+
+All message have the following format:
+sender object data
+
+sender 		the name of the node sending the message
+object		identifies the type of message
+data		additional information (there can be no data)
+
+"position" x y z
+Position broadcast from a newly localized node
+
+"call"
+Localization request from an unlocalized node
+
+"reply"
+Reply to the above from a localized node
