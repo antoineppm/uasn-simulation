@@ -64,7 +64,12 @@ class LSTNode(UWNode):
 						self.status = ["LOCALIZED", "new"]
 						self.positionEstimate = position
 					else:
-						self.status[1] = "waiting"
+						if len(self.calculator.anchors) < len(self.neighbors):
+							# not all neighbors replied, try again
+							self.status[1] = "ready"
+						else:
+							# otherwise wait for more neighbors
+							self.status[1] = "waiting"
 			
 		if self.status[0] == "LOCALIZED":
 			
