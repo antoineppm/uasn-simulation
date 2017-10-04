@@ -12,6 +12,12 @@ class LSTNode(UWNode):
 	
 	slotNumber = 0  # number of time slots in a full cycle
 	
+	# for analysis
+	toaDataX = []
+	toaDataY = []
+	tdoaDataX = []
+	tdoaDataY = []
+	
 	def __init__(self, id, position = (-1,-1,0), localized = False):
 		"""Create a node
 		id          -- unique number identifying the node and its time slot
@@ -68,6 +74,9 @@ class LSTNode(UWNode):
 					if msg == "ok":
 						self.status = ["LOCALIZED", "new"]
 						self.positionEstimate = position
+						# for data analysis
+						LSTNode.toaDataX.append(time)
+						LSTNode.toaDataY.append(np.linalg.norm(position - self.position))
 					else:
 						if len(self.calculator.anchors) < len(self.neighbors):
 							# not all neighbors replied, try again
@@ -122,6 +131,9 @@ class LSTNode(UWNode):
 					print " actual position     " + str(self.position)
 					print " estimated position  " + str(position)
 					print " error               " + str(np.linalg.norm(self.position - position))
+					# for data analysis
+					LSTNode.tdoaDataX.append(time)
+					LSTNode.tdoaDataY.append(np.linalg.norm(position - self.position))
 				self.TDOAcalc = None
 				self.TDOAmaster = None
 		
