@@ -3,7 +3,7 @@
 from parameters import *
 from SimEnvironment import SimEnvironment, distance
 from UWNode import UWNode
-from PositionCalculator import TOACalculator
+from PositionCalculator import TOACalculator, TDOACalculator
 
 import numpy as np
 
@@ -31,6 +31,11 @@ class LSTNode(UWNode):
 		self.timestamp = 0              # marks the time origin for the call-and-reply process
 		self.positionEstimate = position if localized else (0,0,0)
 		# unlocalized nodes should be given a position estimate known to be close to their real position, otherwise ToA may be wrong
+		
+		# experimental TDOA
+		self.TDOAtime = 0
+		self.TDOAmaster = 0
+		self.TDOAcalc = 0
 	
 	def tick(self, time):
 		"""Function called every tick, lets the node perform operations
@@ -70,6 +75,7 @@ class LSTNode(UWNode):
 						else:
 							# otherwise wait for more neighbors
 							self.status[1] = "waiting"
+					self.calculator = None
 			
 		if self.status[0] == "LOCALIZED":
 			
@@ -106,16 +112,41 @@ class LSTNode(UWNode):
 			if self.status == ["UNLOCALIZED", "waiting"] and len(self.neighbors) >= 3:
 				self.status[1] = "ready"
 			
+			# experimental TDOA
+			if self.TDOAmaster == sender:
+				self.TDOAcalc.addAnchor(sender, position)
+				self.TDOAcalc.addDataPoint(sender, 0, (self.TDOAtime, 0))
+				msg, position = self.TDOAcalc.getPosition()
+				print self.name, "TDOA", msg
+				if msg == "ok":
+					print " actual position     " + str(self.position)
+					print " estimated position  " + str(position)
+					print " error               " + str(np.linalg.norm(self.position - position))
+				self.TDOAcalc = None
+				self.TDOAmaster = None
 		
 		if subject == "call":
+			if self.status[0] == "UNLOCALIZED" and self.calculator is None:
+				# experimental TDOA
+				self.TDOAmaster = sender
+				self.TDOAtime = time
+				self.TDOAcalc = TDOACalculator(self.positionEstimate)
+			
 			if self.status == ["LOCALIZED", "idle"]:
-				return self.name + " reply" # this will be transmitted after a delay SIM_TICK
+				return self.name + " reply " + sender # this will be transmitted after a delay SIM_TICK
 		
 		if subject == "reply":
-			if self.status == ["UNLOCALIZED", "localizing"]:
+			recipient = data[0]
+			if self.status == ["UNLOCALIZED", "localizing"] and recipient == self.name:
 				if sender in self.neighbors:
 					self.calculator.addAnchor(sender, self.neighbors[sender])
 					self.calculator.addDataPoint(sender, 0, (time - self.timestamp, SIM_TICK))
+			
+			# experimental TDOA
+			elif self.TDOAmaster == recipient:
+				if sender in self.neighbors:
+					self.TDOAcalc.addAnchor(sender, self.neighbors[sender])
+					self.TDOAcalc.addDataPoint(sender, 0, (time, SIM_TICK))
 		
 		return ""
 	
