@@ -203,7 +203,7 @@ class TOACalculator(PositionCalculator):
 		data        -- compiled data
 		Returns an error message ("ok" if successful) and the estimated position as a numpy array
 		"""
-		X = self.priorPosition
+		X = self.priorPosition[:]
 		N = len(data)
 		
 		for k in xrange(TOA_ITERMAX):
@@ -219,6 +219,83 @@ class TOACalculator(PositionCalculator):
 				diff = np.linalg.inv(J.T.dot(J)).dot(J.T).dot(R)    # differential of the Gauss-Newton method
 			except np.linalg.linalg.LinAlgError:
 				print k, J, J.T.dot(J)
+				return "could not be solved", np.zeros(3)
+			var = np.linalg.norm(diff)
+			X = X - diff
+			
+			if var < TOA_THRESHOLD:
+				return "ok", X
+		
+		return "reached iteration maximum", X
+
+class TDOACalculator(PositionCalculator):
+	"""Position calculation based on time difference of arrival, by listening in on call-and-reply ToA
+	Uses a least-squares method with unlimited anchors
+	Data: (time of arrival, reply delay) 
+	"""
+	def __init__(self, position):
+		"""Creates a new calculator with empty data set
+		position    -- prior position estimate
+		"""
+		PositionCalculator.__init__(self)
+		self.anchorMin = 4
+		self.anchorMax = -1
+		self.priorPosition = np.array(position)
+	
+	def compile(self, sample):
+		"""Compiles a data sample into a form usable by the calculation function
+		Must be implemented by the child classes
+		sample      -- dictionary {anchor: data point}
+		Returns an array of either numbers, or None when a value cannot be calculated
+		"""
+		N = len(self.anchors)
+		deltaDist = [ None for i in xrange(N-1) ]
+		master = self.anchors[-1]   # last anchor, that made the call
+		
+		if master not in sample:
+			# the master is not present, nothing can be done
+			return deltaDist
+		
+		t0, dt0 = sample[master]
+		p0 = self.positions[master]
+		for i in xrange(N-1):
+			anchor = self.anchors[i]
+			if anchor in sample:
+				t, dt = sample[anchor]
+				p = self.positions[anchor]
+				deltaDist[i] = np.linalg.norm(p0 - p) + (t0 - dt0 - t + dt) * SND_SPEED
+		
+		return deltaDist
+	
+	def calculate(self, data):
+		"""Calculates a position estimate from compiled data, using the Gauss-Newton method
+		Must be implemented by the child classes
+		data        -- compiled data
+		Returns an error message ("ok" if successful) and the estimated position as a numpy array
+		"""
+		X = self.priorPosition[:]
+		N = len(data)   # equal to len(anchors) - 1
+		
+		for k in xrange(TOA_ITERMAX):
+			R = np.zeros(N)     # residuals matrix
+			J = np.zeros((N,3)) # Jacobian matrix
+			
+			a0 = self.anchors[-1]
+			dist0 = np.linalg.norm(self.positions[a0] - X)
+			j0 = (self.positions[a0] - X) / dist0
+			
+			for i in xrange(N):
+				a = self.anchors[i]
+				dist = np.linalg.norm(self.positions[a] - X)
+				R[i] = data[i] - (dist0 - dist)
+				J[i] = j0 - (self.positions[a] - X) / dist
+			
+			try:
+				diff = np.linalg.inv(J.T.dot(J)).dot(J.T).dot(R)    # differential of the Gauss-Newton method
+			except np.linalg.linalg.LinAlgError:
+				print k, X
+				print J
+				print J.T.dot(J)
 				return "could not be solved", np.zeros(3)
 			var = np.linalg.norm(diff)
 			X = X - diff
