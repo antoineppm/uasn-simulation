@@ -14,7 +14,7 @@ class PositionCalculator:
 		"""
 		self.anchors = []       # list of anchor names
 		self.positions = {}     # associates to each anchor its position (array of three numbers)
-		self.data = []          # list of data series, each associating to each anchor a data point
+		self.data = []          # list of data samples, each associating to each anchor a data point
 		
 		# parameters to be set by the child classes
 		self.anchorMin = 1      # minimum number of anchors required for the calculation
@@ -35,7 +35,7 @@ class PositionCalculator:
 	def addDataPoint(self, anchor, n, data):
 		"""Adds data to the data set
 		anchor      -- name of the anchor from which the data comes (the anchor must have already been added)
-		n           -- integer identifying the data series
+		n           -- integer identifying the data sample
 		data        -- new data point (iterable of numbers with consistent length)
 		"""
 		# extend the data set if needed
@@ -46,7 +46,7 @@ class PositionCalculator:
 	
 	def getPosition(self, completeOnly=False):
 		"""Compiles the data stored and calculates a position estimate
-		completeOnly    -- only consider complete data series
+		completeOnly    -- only consider complete data sample
 		Returns an error message ("ok" if successful) and the estimated position as a numpy array
 		"""
 		if len(self.anchors) < self.anchorMin:
@@ -55,13 +55,13 @@ class PositionCalculator:
 		if len(self.data) == 0:
 			return "no data", np.zeros(3)
 		
-		N = len(self.compile(self.data[0])) # get the length of a compiled data series
+		N = len(self.compile(self.data[0])) # get the length of a compiled data sample
 		
 		compiledData = [ [] for i in xrange(N) ]
 		
-		# unpack and compile each series
-		for series in self.data:
-			comp = self.compile(series)
+		# unpack and compile each sample
+		for sample in self.data:
+			comp = self.compile(sample)
 			if None in comp and completeOnly:
 				continue
 			else:
@@ -78,10 +78,10 @@ class PositionCalculator:
 		# make the calculation
 		return self.calculate(compiledData)
 	
-	def compile(self, dataSeries):
-		"""Compiles a data series into a form usable by the calculation function
+	def compile(self, sample):
+		"""Compiles a data sample into a form usable by the calculation function
 		Must be implemented by the child classes
-		dataSeries  -- dictionary {anchor: data point}
+		sample      -- dictionary {anchor: data point}
 		Returns an array of either numbers, or None when a value cannot be calculated
 		"""
 		return []
@@ -105,18 +105,18 @@ class UPSCalculator(PositionCalculator):
 		self.anchorMin = 4
 		self.anchorMax = 4
 	
-	def compile(self, dataSeries):
-		"""Compiles a data series into a form usable by the calculation function
-		dataSeries  -- dictionary {anchor: data point}
-		               data points are pairs (time of arrival, transmission delay)
+	def compile(self, sample):
+		"""Compiles a data sample into a form usable by the calculation function
+		Must be implemented by the child classes
+		sample      -- dictionary {anchor: data point}
 		Returns an array of either numbers, or None when a value cannot be calculated
 		"""
 		distDiff = [ None for i in xrange(3) ]
-		if self.anchors[0] in dataSeries:
-			t0, dt0 = dataSeries[self.anchors[0]]
+		if self.anchors[0] in sample:
+			t0, dt0 = sample[self.anchors[0]]
 			for i in xrange(3):
-				if self.anchors[i+1] in dataSeries:
-					t, dt = dataSeries[self.anchors[i+1]]
+				if self.anchors[i+1] in sample:
+					t, dt = sample[self.anchors[i+1]]
 					distDiff[i] = (t0 - dt0 - t + dt) * SND_SPEED
 		return distDiff
 	
@@ -184,16 +184,16 @@ class TOACalculator(PositionCalculator):
 		self.priorPosition = np.array(position)
 	
 	
-	def compile(self, dataSeries):
-		"""Compiles a data series into a form usable by the calculation function
-		dataSeries  -- dictionary {anchor: data point}
-		               data points are pairs (time of flight, retransmission delay)
+	def compile(self, sample):
+		"""Compiles a data sample into a form usable by the calculation function
+		Must be implemented by the child classes
+		sample      -- dictionary {anchor: data point}
 		Returns an array of either numbers, or None when a value cannot be calculated
 		"""
 		distances = [ None for i in xrange(len(self.anchors)) ]
 		for i, a in enumerate(self.anchors):
-			if a in dataSeries:
-				tof, dt = dataSeries[a]
+			if a in sample:
+				tof, dt = sample[a]
 				distances[i] = SND_SPEED * (tof - dt) / 2
 		return distances
 	
