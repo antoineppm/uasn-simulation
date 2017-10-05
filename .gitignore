@@ -1,5 +1,5 @@
-# test file, don't want to track
-src/test.py
+# log file, don't want to track
+src/log.txt
 
 # compiled binaries, polute the commits
 *.pyc
