@@ -15,8 +15,10 @@ class LSTNode(UWNode):
 	# for analysis
 	toaDataX = []
 	toaDataY = []
+	toaDataZ = []
 	tdoaDataX = []
 	tdoaDataY = []
+	tdoaDataZ = []
 	
 	def __init__(self, id, position = (-1,-1,0), localized = False):
 		"""Create a node
@@ -77,6 +79,7 @@ class LSTNode(UWNode):
 						# for data analysis
 						LSTNode.toaDataX.append(time)
 						LSTNode.toaDataY.append(np.linalg.norm(position - self.position))
+						LSTNode.toaDataZ.append(len(self.calculator.anchors))
 					else:
 						if len(self.calculator.anchors) < len(self.neighbors):
 							# not all neighbors replied, try again
@@ -134,6 +137,7 @@ class LSTNode(UWNode):
 					# for data analysis
 					LSTNode.tdoaDataX.append(time)
 					LSTNode.tdoaDataY.append(np.linalg.norm(position - self.position))
+					LSTNode.tdoaDataZ.append(len(self.TDOAcalc.anchors))
 				self.TDOAcalc = None
 				self.TDOAmaster = None
 		

@@ -62,7 +62,7 @@ for i in xrange(R):
 
 # run the simulation (logging on, show begining and end)
 
-sim.run(3000, show=3000, verbose=True)
+sim.run(3000, show=000, verbose=True)
 
 # log the results
 
@@ -93,11 +93,19 @@ print "variance  ", np.var     (LSTNode.tdoaDataY)
 
 # display the gathered data
 
+print 10*LSTNode.toaDataZ
+
 fig = plt.figure()
 axes = fig.add_subplot(111)
 
 axes.scatter(LSTNode.toaDataX, LSTNode.toaDataY, color='r', lw=0)
 axes.scatter(LSTNode.tdoaDataX, LSTNode.tdoaDataY, color='b', lw=0)
+
+for i, n in enumerate(LSTNode.toaDataZ):
+	axes.annotate(str(n), (LSTNode.toaDataX[i], LSTNode.toaDataY[i]))
+
+for i, n in enumerate(LSTNode.tdoaDataZ):
+	axes.annotate(str(n), (LSTNode.tdoaDataX[i], LSTNode.tdoaDataY[i]))
 
 plt.show()
 
